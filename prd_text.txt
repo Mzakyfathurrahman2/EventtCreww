@@ -1,0 +1,489 @@
+PRODUCT REQUIREMENTS DOCUMENT
+EventCrew
+Smart Event Committee Management System
+
+Tim: M. Zaky Fathurrahman (24523172), Dzaki Putra Gunawan (24523065), Raihan Farabi Muzakki (24523246), Adhitya Ananta Firdaus (20523204)
+Kelompok: 8
+Mata Kuliah: Pengembangan Sistem Informasi
+Tema Proyek: Event Organizer & Committee Management System
+
+Revision History
+Versi | Tanggal | Author | Perubahan
+v0.1 | Mei 2026 | M. Zaky Fathurrahman | Draft awal — Problem Statement, Objectives, Scope
+v0.2 | Mei 2026 | Dzaki Putra Gunawan | Tambah Stakeholder, Functional Requirements & Workflows
+v1.0 | Mei 2026 | Raihan Farabi Muzakki | Tambah Design, Data Entities, NFR & Release Plan
+v1.1 | Juni 2026 | Adhitya Ananta Firdaus | Tambah Entitas SESI_ABSENSI, SUB_TASK, ORGANISASI; FR baru (Reset Password, Pengumuman, Auto-save); Revisi Design Constraint mobile; Smart Template 5 jenis event; Tech Stack & Arsitektur Docker
+v1.2 | Juni 2026 | M. Zaky Fathurrahman | Tambah 5 Entitas baru (KEANGGOTAAN_EVENT, NOTIFIKASI, PESAN_CHAT, DOKUMEN, LAPORAN_EVENT); Tambah FR-029 (approve anggota); 3 Workflow baru; 4 NFR baru; perbaiki alur PENDING; fix format Section 1.3; fix timeline milestone; fix baseline Success Metrics
+v1.3 | Juni 2026 | M. Zaky Fathurrahman | Ganti arsitektur dari Docker (PostgreSQL+MinIO) ke setup lokal sederhana (SQLite+Prisma+local storage) atas saran asisten dosen; tambah Section 12 (29 API endpoint), Section 13 (spesifikasi Socket.io events), Section 14 (struktur folder backend & frontend); tambah library yang sebelumnya hilang (Nodemailer, qrcode.react, html5-qrcode, Zod, pdfkit); hapus referensi role bendahara di FR-015
+v1.4 | Juli 2026 | M. Zaky Fathurrahman | Pembaruan fitur Multi-User Type (Panitia, Klien, Vendor), Kolaborasi Mitra & Privatisasi Obrolan, Join Code 6-karakter, Penambahan Anggota Manual, Detail Opsional Event & Pengumuman, Absensi Manual & Mandiri (Self-Absen), dan Fitur Soft-delete Chat & Dokumen.
+v1.5 | Juli 2026 | M. Zaky Fathurrahman | Pembaruan generalisasi ruang lingkup PRD dari skala kampus menjadi skala umum (Event Organizer, Sekolah, Komunitas, dll) serta penyesuaian stakeholder dan asumsi.
+
+1. Problem Statement
+1.1 Latar Belakang
+Kegiatan penyelenggaraan event, baik skala profesional (Event Organizer), organisasi sekolah, kepanitiaan kampus (BEM/UKM/HMPS), maupun komunitas sosial kemasyarakatan, melibatkan banyak panitia dari berbagai divisi. Sayangnya, mayoritas penyelenggara masih mengandalkan grup chat instan seperti WhatsApp dan spreadsheet untuk koordinasi. Cara ini tidak efektif ketika jumlah panitia besar dan event semakin kompleks — informasi mudah hilang, tugas tidak terpantau, dan tidak ada dokumentasi setelah event selesai.
+
+1.2 Problem Statement
+Penyelenggara event tidak dapat mengelola koordinasi secara terstruktur karena tidak ada sistem manajemen kepanitiaan yang sesuai, sehingga terjadi miskomunikasi, tugas tidak terpantau, dan tidak ada evaluasi kinerja yang jelas setelah event selesai.
+
+1.3 Siapa yang Terdampak
+Pihak | Dampak yang Dirasakan
+Ketua Panitia / Project Manager | Sulit memantau progres tiap divisi tanpa bertanya satu per satu.
+Koordinator Divisi | Tidak punya alat yang cukup untuk membagi dan memantau tugas anggotanya.
+Anggota Panitia | Sering melewatkan tugas karena informasi tenggelam di chat WhatsApp.
+Organisasi / Perusahaan / EO / Sekolah / Komunitas | Tidak ada rekap kinerja yang bisa dijadikan bahan evaluasi dan portofolio.
+
+2. Stakeholder
+Berikut adalah pihak-pihak yang terlibat dan terdampak oleh pengembangan EventCrew:
+Stakeholder | Kepentingan / Kebutuhan | Pengaruh
+Ketua Panitia / Project Manager | Butuh tools untuk assign tugas, pantau progres divisi, dan generate laporan event. | Tinggi — pengguna utama yang menentukan apakah platform diadopsi oleh tim.
+Koordinator Divisi | Butuh fitur untuk membagi sub-tugas dan memantau kinerja anggota divisinya. | Tinggi — jembatan antara ketua dan anggota, penggunaan hariannya paling intensif.
+Anggota Panitia | Butuh tampilan tugas yang jelas, notifikasi deadline, dan akses rundown hari H. | Sedang — pengguna terbanyak, pengalaman mereka menentukan keberhasilan adopsi.
+Organisasi Penyelenggara (EO, Sekolah, BEM/UKM, Komunitas) | Butuh rekap kinerja panitia sebagai bahan evaluasi dan arsip portofolio event. | Tinggi — sebagai pemberi mandat event, mereka pengambil keputusan adopsi.
+Klien (Owner Event) | Butuh transparansi progres persiapan event, komunikasi langsung dengan pengurus inti, serta pengunggahan dokumen spesifik klien. | Tinggi — sebagai pemegang proyek event, keterlibatan mereka sangat krusial bagi kesuksesan event.
+Vendor (Pihak Ketiga) | Butuh koordinasi teknis yang jelas dengan divisi terkait (Konsumsi, Perlengkapan, Pubdok, Acara, Humas) dan tempat pengunggahan tagihan/kontrak vendor. | Sedang — sebagai penyedia barang/jasa, memperlancar koordinasi operasional di lapangan.
+Tim Pengembang | Membangun dan memelihara platform sesuai spesifikasi PRD ini. | Tinggi — menentukan kualitas dan waktu rilis produk.
+Klien Utama / Instansi / Evaluator | Pihak luar yang mengevaluasi proyek/event dan berpotensi menjadi adopter institusional. | Sedang — dapat memengaruhi kebijakan penggunaan di level organisasi/institusi.
+
+2.1 Pembagian Peran Tim
+Nama Anggota | Peran | Tanggung Jawab Utama
+M. Zaky Fathurrahman (24523172) | Project Manager / Backend Lead | Koordinasi tim, arsitektur backend, API design, struktur project
+Dzaki Putra Gunawan (24523065) | Backend Developer | Implementasi API endpoint, autentikasi JWT, cron job scheduler
+Raihan Farabi Muzakki (24523246) | Frontend Developer | Implementasi UI React, integrasi API, responsivitas mobile
+Adhitya Ananta Firdaus (20523204) | QA / DevOps | Testing, dokumentasi, setup environment, deployment ke Railway/Render
+
+3. Objectives
+3.1 Business Objectives
+# | Objective | Alasan | Indikator Keberhasilan
+1 | Gantikan koordinasi WhatsApp dengan platform terpusat | Mengurangi informasi yang hilang atau terlewat | 80% panitia aktif pakai platform selama persiapan
+2 | Beri visibilitas real-time progres per divisi ke ketua/PM | Ketua bisa ambil tindakan lebih cepat | Ketua lihat status semua tugas tanpa tanya manual
+3 | Otomatiskan pengingat deadline tugas | Kurangi tugas yang terlambat atau terlupakan | Tugas melewati deadline turun 60%
+4 | Sediakan laporan kinerja panitia otomatis pasca event | Dukung evaluasi untuk event berikutnya | Laporan tersedia dalam 24 jam setelah event selesai
+5 | Integrasikan Kemitraan Klien & Vendor | Membuka jalur komunikasi resmi dan aman di luar WhatsApp | Klien dan vendor dapat berkoordinasi langsung di platform secara tersegregasi
+
+3.2 User Objectives
+Actor | Yang Ingin Dicapai | Hambatan Saat Ini
+Ketua Panitia / PM | Pantau progres semua divisi dari satu dashboard | Harus tanya satu per satu via WhatsApp
+Koordinator Divisi | Distribusikan dan pantau tugas anggota divisinya | Tidak ada alat tracking — semua manual di chat
+Anggota Panitia | Tahu tugas apa yang harus dikerjakan dan kapan batasnya | Tugas tenggelam di chat WhatsApp yang ramai
+Organisasi / Perusahaan / EO / Sekolah / Komunitas | Punya rekap kinerja panitia sebagai bahan evaluasi | Data hilang setelah event selesai dan group/divisi dibubarkan
+Klien | Memantau kesiapan event dan berkomunikasi dengan panitia inti | Sering tidak mendapat update berkala atau data terpisah-pisah
+Vendor | Mengetahui detail kebutuhan divisi operasional dan mengunggah dokumen | Informasi lapangan sering simpang siur di grup WhatsApp besar
+
+4. Success Metrics
+Metric | Kondisi Sekarang | Target (3 bulan) | Cara Ukur
+% panitia aktif pakai platform | 0% (belum ada sistem) | >= 80% | Log aktivitas di sistem
+Tugas selesai sebelum deadline | Baseline diukur di M1 (belum ada data) | >= 85% | Data status tugas di database
+Waktu ketua dapat update progres | > 30 menit (tanya manual) | < 1 menit (real-time) | Waktu load dashboard
+Laporan tersedia pasca event | Tidak ada | <= 24 jam otomatis | Scopes generate laporan
+Kepuasan Klien & Vendor | Tidak ada sistem formal | Skala kepuasan >= 4.0/5.0 | Kuesioner umpan balik pasca event
+
+5. Scope
+5.1 In-Scope & Out-of-Scope
+IN Scope (MVP) | OUT of Scope (v1)
+Registrasi akun dan login pengguna (Panitia, Klien, Vendor) | Penjualan tiket kepada peserta event
+Manajemen anggota: undang (link & join code), assign divisi, role (Ketua, Sekretaris, Bendahara, Koordinator, Anggota) | Aplikasi mobile native (iOS/Android)
+Task management dengan sub-task (buat, assign, deadline, status) | Fitur untuk peserta/audiens event
+Dashboard monitoring progres per divisi secara real-time | Integrasi platform tiket eksternal (Loket, Eventbrite)
+Notifikasi otomatis (deadline, update tugas, request join, pengumuman) | Manajemen sponsor dan kontrak
+Chat per divisi berbasis WebSocket (Socket.io) dengan privatisasi akses untuk Klien & Vendor | Fitur livestreaming event
+Timeline dan rundown digital hari H | Sistem penggajian / honorarium panitia
+Absensi panitia berbasis QR code (QR di device ketua) + Absensi manual & mandiri (self-absen) | E-sertifikat untuk peserta event
+File sharing dokumen event per kategori (UMUM, KEUANGAN, DIVISI, KLIEN, VENDOR) | Fitur monetisasi / manajemen langganan
+Smart Template per 5 jenis event (Seminar, Festival, Workshop, Konser, Lomba) |
+Reset password via email |
+Auto-save draft form event (localStorage) |
+Penambahan anggota secara manual oleh Panitia Inti |
+Soft delete pesan chat dan dokumen oleh pemilik/pengurus |
+
+5.2 Asumsi & Batasan
+Tipe | Keterangan
+Asumsi | Pengguna punya akses internet dan browser modern (Chrome, Firefox, Edge).
+Asumsi | Ketua panitia mau menginisiasi penggunaan platform dan mengajak anggotanya.
+Asumsi | Event yang dikelola skala kecil hingga menengah: 10–200 panitia dari berbagai jenis organisasi (EO, kepanitiaan sekolah, organisasi mahasiswa, maupun komunitas umum).
+Asumsi | Satu anggota hanya dapat bergabung dalam satu divisi per event (kecuali Klien & Vendor yang memiliki hak akses room khusus).
+Batasan | MVP tersedia di web browser (desktop dan mobile) — belum ada aplikasi native.
+Batasan | Fitur real-time (chat, notifikasi) butuh koneksi internet stabil.
+Batasan | File upload dibatasi maksimal 10 MB per file. Format yang diterima: PDF, DOCX, XLSX, JPG, PNG.
+Batasan | Hosting gratis (Railway/Render) memakai filesystem ephemeral — file dev.db dan folder /uploads bisa hilang saat redeploy. Mitigasi: gunakan persistent volume, atau Postgres + object storage bila perlu online persisten.
+Batasan | SQLite hanya mengizinkan satu penulis pada satu waktu (write-lock); saat 200 user menulis bersamaan di hari H bisa terjadi antrean. Mitigasi: aktifkan mode WAL, naikkan ke Postgres bila skala bertambah.
+Batasan | Absensi QR memakai token statis per sesi sehingga bisa difoto dan dititipkan ke teman yang tidak hadir. Mitigasi: gunakan rotating QR (token diperbarui tiap 10–15 detik) atau validasi waktu scan yang ketat.
+Batasan | Penanganan waktu: semua timestamp disimpan dalam UTC dan ditampilkan dalam WIB (Asia/Jakarta, UTC+7).
+
+6. Functional Requirements
+6.1 FR: Ketua Panitia & Panitia Inti (Ketua, Sekretaris, Bendahara)
+FR ID | The system shall… | Kondisi / Trigger | Prioritas | MoSCoW
+FR-001 | Mengizinkan pendaftaran akun dengan nama, email, password, nama organisasi/perusahaan, kota/lokasi instansi, dan user_type (PANITIA, KLIEN, VENDOR). Jika nama organisasi + instansi sudah terdaftar, akun ditautkan ke organisasi yang sama. | Saat pertama kali membuka platform. | High | M
+FR-002 | Membuat event baru dengan input nama, tanggal pelaksanaan, jenis event, serta deskripsi, lokasi, dan tanggal selesai opsional. | Setelah login sebagai Ketua. | High | M
+FR-003 | Meng-generate smart template (divisi, checklist tugas, timeline mundur) otomatis sesuai 5 jenis event: Seminar, Festival, Workshop, Konser, Lomba. Ketua dapat mengedit template setelah di-generate. | Setelah ketua selesai buat event. | High | M
+FR-004 | Mengirim link undangan (UUID) dan join code (6-karakter alfanumerik) berlaku 12 jam (multi-use). Calon anggota/mitra masuk status PENDING dan wajib disetujui panitia inti. | Saat ketua ingin tambah anggota/mitra. | High | M
+FR-005 | Assign anggota ke divisi dan tentukan role (koordinator/anggota). Satu anggota hanya bisa di satu divisi. | Setelah anggota bergabung ke event. | High | M
+FR-006 | Buat tugas utama, assign ke koordinator/anggota, set deadline dan prioritas. | Selama fase persiapan event. | High | M
+FR-007 | Tampilkan dashboard monitoring progres per divisi secara real-time via polling 5 detik (% selesai, tugas tertunggak, anggota tidak aktif). | Saat ketua buka halaman dashboard. | High | M
+FR-008 | Generate laporan kinerja panitia otomatis setelah event ditandai selesai. Jika masih ada tugas belum Done, sistem tampilkan peringatan sebelum konfirmasi selesai. | Saat ketua tandai event selesai. | High | M
+FR-009 | Ekspor laporan kinerja dalam format PDF. | Saat ketua buka halaman laporan. | Medium | S
+FR-021 | Membuat pengumuman (broadcast) ke seluruh panitia (divisi_id = null) dengan detail opsional waktu pertemuan dan tempat/lokasi. | Kapan saja selama event aktif. | High | M
+FR-022 | Auto-save form pembuatan event ke localStorage browser sehingga draft tidak hilang jika browser ditutup. | Selama pengguna mengisi form buat event. | Medium | S
+FR-023 | Membuat sesi absensi (nama sesi, waktu mulai, waktu selesai, jenis: RAPAT/HARI_H) dan menampilkan QR code di layar ketua. | Saat ketua ingin membuka sesi absensi. | High | S
+FR-024 | Melihat rekap kehadiran real-time (siapa sudah scan, siapa belum) selama sesi absensi berlangsung. | Selama sesi absensi berstatus AKTIF. | Medium | S
+FR-029 | Tampilkan daftar anggota/mitra berstatus PENDING dan izinkan ketua/sekretaris/bendahara menyetujui atau menolak dengan satu klik. | Setelah anggota klik link undangan / input join code. | High | M
+FR-030 | Mengizinkan ketua menambah, mengganti nama, atau menghapus divisi saat event berstatus PERSIAPAN (tidak bisa dihapus saat AKTIF). | Saat ketua edit struktur divisi. | High | M
+FR-033 | Mengizinkan pembuat pengumuman mengedit atau menghapus pengumuman yang sudah dikirim. | Saat ada koreksi isi pengumuman. | Medium | S
+FR-035 | Mengizinkan Ketua, Sekretaris, dan Bendahara untuk menambahkan anggota secara manual menggunakan email terdaftar (langsung aktif, tanpa status PENDING). | Kapan saja di halaman detail event. | High | M
+FR-036 | Mengizinkan Ketua, Sekretaris, dan Bendahara melakukan absensi manual untuk anggota yang hadir. | Selama sesi absensi berstatus AKTIF. | High | M
+FR-037 | Mengizinkan Ketua, Sekretaris, dan Bendahara melakukan self-absensi (absen mandiri) tanpa memindai QR code. | Selama sesi absensi berstatus AKTIF. | High | S
+
+6.2 FR: Anggota & Koordinator
+FR ID | Actor | The system shall… | Kondisi / Trigger | MoSCoW
+FR-010 | Anggota | Tampilkan daftar tugas dan sub-tugas yang di-assign ke anggota yang sedang login. | Saat anggota buka halaman task. | M
+FR-011 | Anggota | Izinkan anggota ubah status sub-tugas: To Do → In Progress → Done. | Saat anggota kerjakan tugas. | M
+FR-012 | Anggota | Izinkan anggota scan QR (ditampilkan di layar ketua) untuk catat kehadiran saat sesi absensi aktif. | Saat sesi absensi dibuka ketua. | S
+FR-013 | Koordinator | Izinkan koordinator buat sub-tugas dari tugas utama ketua, assign ke anggota divisinya. Status tugas utama baru bisa Done jika semua sub-tugas Done. | Saat koordinator kelola tugas divisi. | M
+FR-014 | Semua | Sediakan ruang chat real-time (Socket.io) terpisah untuk setiap divisi. | Selama event berlangsung. | S
+FR-015 | Semua | Izinkan upload/download dokumen event. Kategori: Umum (semua bisa akses), Keuangan (hanya ketua), Per Divisi (anggota divisi saja). Maks 10 MB, format: PDF/DOCX/XLSX/JPG/PNG. | Kapan saja selama event aktif. | S
+FR-025 | Anggota | Izinkan anggota melakukan reset password melalui link yang dikirim ke email terdaftar (berlaku 1 jam). | Saat anggota klik 'Lupa Password'. | M
+FR-031 | Ketua/Koord | Mengizinkan pembuat tugas/sub-tugas mengedit (judul, deskripsi, deadline, prioritas), me-reassign, atau menghapus tugas/sub-tugas selama event belum SELESAI. | Saat ada salah input atau perubahan rencana. | M
+FR-032 | Pengupload/Ketua | Mengizinkan penghapusan dokumen secara soft delete (file dipindah ke arsip, record ditandai is_deleted). | Saat dokumen salah unggah / tidak relevan. | S
+FR-034 | Pengirim/Koord | Mengizinkan penghapusan pesan chat secara soft delete (is_deleted = true) sehingga isi disembunyikan namun record tetap tersimpan. | Saat pesan salah kirim / tidak pantas. | C
+
+6.2b FR: Klien & Vendor (Mitra)
+FR ID | Actor | The system shall… | Kondisi / Trigger | MoSCoW
+FR-047 | Klien | Mengizinkan pendaftaran dan pengajuan gabung ke event. Setelah disetujui, klien hanya memiliki akses ke room chat 'Klien' dan 'Koordinasi Utama'. | Setelah memasukkan join code / link undangan. | M
+FR-048 | Vendor | Mengizinkan vendor mendaftar dengan memilih tipe BARANG/JASA dan sub-tipe divisi kolaborasi (Konsumsi, Perlengkapan, Pubdok, Acara, Humas). Setelah disetujui, hanya bisa mengakses chat 'Koordinasi Utama' dan 'Vendor - [Subtype]'. | Setelah disetujui bergabung ke event. | M
+FR-049 | Klien | Membatasi akses dokumen klien secara ketat: Klien hanya dapat mengunggah dan melihat dokumen dengan kategori KLIEN. | Saat mengakses tab dokumen event. | M
+FR-050 | Vendor | Membatasi akses dokumen vendor secara ketat: Vendor hanya dapat mengunggah dan melihat dokumen dengan kategori VENDOR. | Saat mengakses tab dokumen event. | M
+FR-051 | Klien/Vendor | Menyembunyikan menu Task Management dan Absensi dari interface Klien & Vendor. | Setelah mitra berhasil login dan masuk ke event. | M
+
+6.3 FR: Sistem (Otomatis)
+FR ID | The system shall… | Kondisi / Trigger | Prioritas | MoSCoW
+FR-016 | Kirim notifikasi in-app ke anggota saat tugas baru di-assign kepadanya. | Saat ketua/koordinator assign tugas. | High | M
+FR-017 | Kirim pengingat deadline otomatis H-3 dan H-1 sebelum batas waktu tugas via notifikasi in-app. Dijalankan oleh node-cron scheduler setiap jam. | Otomatis berdasarkan timer deadline (node-cron). | High | M
+FR-018 | Validasi akun baru dan tolak jika email sudah terdaftar. Aturan validasi (Zod): password minimal 8 karakter kombinasi huruf+angka, nama 3–60 karakter, email harus format valid, tanggal event tidak boleh di masa lalu. | Saat pengguna baru registrasi. | High | M
+FR-019 | Rekap data kinerja panitia (tugas selesai, keterlambatan, kehadiran, ranking divisi) otomatis saat event ditandai selesai. | Saat event ditandai selesai. | High | M
+FR-020 | Batasi akses fitur sesuai role pengguna (ketua, koordinator, anggota) di level backend (HTTP 403 Forbidden). Pengecekan role membaca role_event dari KEANGGOTAAN_EVENT sesuai event pada request, bukan role_default. | Setiap kali pengguna akses endpoint. | High | M
+FR-026 | Otomatis tandai status sub-tugas/tugas sebagai TERLAMBAT jika deadline terlewat dan status belum Done. Dijalankan oleh node-cron setiap jam. | Otomatis setiap jam via node-cron. | High | M
+FR-027 | Tandai anggota sebagai 'Tidak Aktif' jika tidak ada aktivitas login atau update tugas selama 3 hari sejak bergabung. Label tampil di dashboard ketua dan koordinator. | Dicek otomatis setiap hari via node-cron. | Medium | S
+FR-028 | Otomatis tutup sesi absensi saat waktu_selesai tercapai. Tolak scan QR di luar waktu sesi aktif. | Saat waktu sesi absensi berakhir. | High | S
+FR-043 | Mengirimkan notifikasi in-app ke panitia inti ketika ada mitra/anggota meminta bergabung, dengan template pesan yang menyesuaikan user_type. | Saat user melakukan join event. | High | M
+FR-044 | Otomatis membuat room chat default saat pertama kali list chat room diakses (`Umum`, `Koordinator & Inti`, `Pengurus Inti`, `Klien`, `Vendor - Konsumsi`, `Vendor - Perlengkapan`, `Vendor - Pubdok`, `Vendor - Acara`, `Vendor - Humas`, `Koordinasi Utama`). | Saat getChatRooms dipanggil. | High | M
+
+7. User Workflows
+7.1 Pembuatan Event & Onboarding Panitia
+Actor: Ketua Panitia / PM
+Goal: Membuat event baru dan mengajak anggota bergabung ke workspace.
+FR Terkait: FR-001, FR-002, FR-003, FR-004, FR-005, FR-022, FR-039
+Ideal Path:
+1. Ketua buka platform dan daftar akun organisasi.
+2. Sistem validasi email — jika sudah terdaftar, tampilkan pesan dan arahkan ke login.
+3. Ketua buat event baru: isi nama, tanggal, jenis event, serta deskripsi dan lokasi opsional. Sistem auto-save ke localStorage tiap perubahan.
+4. Sistem otomatis generate smart template sesuai jenis event: divisi, checklist tugas, dan timeline mundur.
+5. Ketua edit template jika diperlukan (tambah/hapus divisi atau tugas).
+6. Ketua generate link undangan (UUID) dan join code 6-karakter alfanumerik.
+7. Anggota klik link atau memasukkan join code, lalu masuk ke workspace event dengan status PENDING.
+8. Sistem kirim notifikasi ke ketua: 'Ada anggota baru menunggu persetujuan'. Ketua lihat daftar PENDING dan klik Setujui atau Tolak.
+9. Setelah disetujui, status anggota berubah AKTIF. Ketua assign anggota ke divisi dan tentukan role (koordinator/anggota).
+
+7.2 Manajemen Tugas & Monitoring Progres
+Actor: Ketua, Koordinator, Anggota
+Goal: Pastikan semua tugas dikerjakan dan terpantau hingga hari H.
+FR Terkait: FR-006, FR-007, FR-010, FR-011, FR-013, FR-016, FR-017, FR-026
+Ideal Path:
+1. Ketua buat tugas utama, assign ke koordinator, set deadline dan prioritas.
+2. Sistem kirim notifikasi in-app otomatis ke koordinator yang di-assign.
+3. Koordinator buat sub-tugas dari tugas utama dan assign ke anggota divisinya.
+4. Anggota ubah status sub-tugas ke In Progress saat mulai mengerjakan.
+5. Sistem kirim pengingat otomatis H-3 dan H-1 sebelum deadline via notifikasi in-app.
+6. Anggota ubah status sub-tugas ke Done setelah selesai.
+7. Jika semua sub-tugas Done, koordinator dapat menandai tugas utama sebagai Done.
+8. Dashboard ketua otomatis update setiap 5 detik (polling) menampilkan progres terbaru per divisi.
+
+7.3 Absensi QR Panitia
+Actor: Ketua Panitia / PM, Anggota
+Goal: Mencatat kehadiran panitia saat rapat atau hari H secara efisien tanpa sistem manual.
+FR Terkait: FR-023, FR-024, FR-012, FR-028
+Ideal Path:
+1. Ketua buat sesi absensi baru: isi nama sesi, jenis (RAPAT/HARI_H), waktu mulai, waktu selesai.
+2. Sistem generate QR code unik (berisi qr_token UUID) dan tampilkan di layar ketua dalam mode fullscreen.
+3. Ketua arahkan layar device ke panitia yang hadir. Anggota scan QR menggunakan kamera smartphone masing-masing.
+4. Sistem verifikasi token — jika valid dan sesi masih AKTIF, catat kehadiran. Jika sudah scan sebelumnya, tampilkan pesan 'Sudah absen'.
+5. Layar ketua otomatis update real-time: nama anggota yang sudah scan muncul di daftar HADIR.
+6. Saat waktu_selesai tercapai, sistem otomatis tutup sesi. Semua anggota yang belum scan ditandai TIDAK_HADIR.
+7. Data kehadiran sesi tersimpan dan bisa dilihat di laporan akhir event.
+
+7.4 Koordinator Kelola Tugas Divisi
+Actor: Koordinator Divisi, Anggota
+Goal: Koordinator memecah tugas dari ketua menjadi sub-tugas yang terdistribusi jelas ke anggota divisi.
+FR Terkait: FR-013, FR-010, FR-011, FR-016, FR-026
+Ideal Path:
+1. Koordinator terima notifikasi in-app: 'Tugas baru di-assign oleh ketua'.
+2. Koordinator buka detail tugas, lalu buat sub-tugas: isi judul, deskripsi, deadline, dan assign ke anggota divisinya.
+3. Sistem kirim notifikasi in-app ke anggota yang di-assign sub-tugas: 'Sub-tugas baru menunggumu'.
+4. Anggota buka task, ubah status ke In Progress, lalu kerjakan. Saat selesai, anggota ubah ke Done.
+5. Koordinator pantau progres semua sub-tugas dari halaman tugas divisi. Jika ada sub-tugas TERLAMBAT, koordinator bisa hubungi anggota via chat divisi.
+6. Setelah SEMUA sub-tugas berstatus Done, koordinator menandai tugas utama sebagai Done. Sistem validasi — jika masih ada sub-tugas belum Done, tombol Done di-disable.
+7. Dashboard ketua otomatis update — progress divisi bertambah.
+
+7.5 Laporan Pasca Event
+Actor: Ketua Panitia, Sistem
+Goal: Menghasilkan rekap kinerja panitia secara otomatis sebagai bahan evaluasi event berikutnya.
+FR Terkait: FR-008, FR-009, FR-019
+Ideal Path:
+1. Ketua klik tombol 'Tandai Event Selesai'.
+2. Sistem cek apakah masih ada tugas belum Done — jika ada, tampilkan peringatan: 'Masih ada N tugas belum selesai. Lanjutkan?' Ketua konfirmasi atau batalkan.
+3. Status event berubah SELESAI. Semua fitur edit dikunci. Hanya laporan yang bisa diakses.
+4. Sistem kalkulasi otomatis dan simpan ke tabel LAPORAN_EVENT: % tugas selesai per divisi, jumlah keterlambatan, % kehadiran per sesi, ranking divisi tergercep.
+5. Ketua buka halaman Laporan — data tersedia dalam <= 24 jam (biasanya instan karena dikalkulasi saat event ditandai selesai).
+6. Ketua klik 'Ekspor PDF' — sistem generate PDF laporan dan browser otomatis unduh file.
+
+7.6 Kolaborasi Klien & Vendor (Mitra)
+Actor: Klien, Vendor, Panitia Inti
+Goal: Berkolaborasi dalam satu event dengan pembatasan hak akses informasi yang ketat.
+FR Terkait: FR-047, FR-048, FR-049, FR-050, FR-051, FR-043, FR-044, FR-046
+Ideal Path:
+1. Klien / Vendor melakukan pendaftaran akun sesuai tipe akunnya masing-masing.
+2. Ketua memberikan join code atau link undangan kepada Klien & Vendor.
+3. Klien / Vendor memasukkan join code atau mengakses link undangan tersebut, lalu masuk ke antrean PENDING.
+4. Panitia inti menerima notifikasi permintaan join, masuk ke tab "Klien & Vendor", dan menyetujui permintaan tersebut.
+5. Klien / Vendor terdaftar secara resmi sebagai mitra aktif di event.
+6. Klien berkomunikasi di room chat "Klien" dan "Koordinasi Utama". Vendor berkomunikasi di room "Koordinasi Utama" dan room divisi vendor terkait (misal "Vendor - Konsumsi").
+7. Klien mengunggah berkas di tab dokumen dengan kategori KLIEN. Vendor mengunggah dokumen dengan kategori VENDOR. Berkas mitra hanya dapat diakses oleh mitra bersangkutan dan pengurus inti.
+
+7.7 Absensi Manual & Mandiri
+Actor: Panitia Inti, Anggota
+Goal: Mengakomodasi absensi secara fleksibel bagi panitia inti maupun anggota yang terkendala.
+FR Terkait: FR-036, FR-037
+Ideal Path:
+1. Ketua/Sekretaris/Bendahara membuat sesi absensi.
+2. Untuk mempermudah pencatatan kehadiran internal pengurus, Ketua/Sekretaris/Bendahara dapat menekan tombol "Absen Mandiri" di detail sesi untuk langsung mengubah status diri sendiri menjadi HADIR tanpa perlu scan QR.
+3. Jika ada anggota divisi operasional yang tidak membawa perangkat atau kamera bermasalah, Ketua/Sekretaris/Bendahara dapat mencarinya di list absensi dan klik tombol "Absen Manual" di samping namanya untuk mengubah status kehadiran menjadi HADIR secara manual.
+
+7.8 Soft Delete Chat & Dokumen
+Actor: Pengirim Chat, Pengunggah Dokumen, Panitia Inti
+Goal: Menghapus data salah kirim tanpa merusak integritas database (tetap menyimpannya sebagai arsip log).
+FR Terkait: FR-032, FR-034
+Ideal Path:
+1. User menyadari ada dokumen atau pesan chat yang salah unggah / salah kirim.
+2. User mengklik ikon "Hapus" (tempat sampah) pada pesan atau dokumen miliknya.
+3. Sistem memproses penghapusan secara soft delete dengan mengubah status `is_deleted = true` pada baris database terkait.
+4. Isi pesan chat disembunyikan di UI dan digantikan dengan teks "Pesan ini telah dihapus". Dokumen dipindahkan dari daftar aktif ke folder arsip tersembunyi yang hanya bisa diakses Ketua (jika perlu).
+
+8. Design Considerations
+Design Constraint 1 — Role-Based UI & Access Control
+Constraint: Tampilan dan akses menu harus menyesuaikan role (Ketua, Sekretaris, Bendahara, Koordinator, Anggota) dan user_type (Panitia, Klien, Vendor) yang sedang login. Pengguna tidak boleh akses fitur di luar kewenangannya.
+Threshold:
+- Ketua: Dashboard global semua divisi + fitur pengumuman broadcast + kelola divisi, anggota, manual member, dan status event.
+- Sekretaris & Bendahara (Panitia Inti): Hak akses setara Ketua dalam mengelola anggota (approval & manual), mengubah status event, membuat pengumuman broadcast, dan mengelola absensi (manual & mandiri).
+- Koordinator: Hanya divisi yang dipimpinnya + membuat sub-tugas divisi + membuat pengumuman divisi.
+- Anggota: Hanya melihat tugas yang di-assign + melakukan scan QR absensi.
+- Klien: Hanya melihat list mitra + chat room (Klien & Koordinasi Utama) + upload/download dokumen KLIEN. Tidak melihat menu task & absensi.
+- Vendor: Hanya melihat list mitra + chat room (Koordinasi Utama & Vendor - Subtype) + upload/download dokumen VENDOR. Tidak melihat menu task & absensi.
+Cara Uji: Login tiap tipe akun dan role, verifikasi bahwa menu yang dibatasi tidak tampil di sidebar/dashboard, serta verifikasi endpoint backend mengembalikan HTTP 403 Forbidden jika diakses di luar otorisasi.
+
+Design Constraint 2 — Mobile-Friendly Web (DIPERBARUI)
+Constraint: Semua halaman harus berfungsi baik di browser desktop, tablet, dan smartphone. Sistem harus mobile-friendly (web responsive), bukan aplikasi native.
+Threshold: Lebar minimum yang didukung: 375px (smartphone standar). Elemen interaktif minimal 44×44px. Tidak ada tumpang tindih atau scroll horizontal di semua viewport. Alur utama bisa diselesaikan di smartphone tanpa kesulitan. Implementasi: Tailwind CSS dengan breakpoint sm (640px), md (768px), lg (1024px).
+Cara Uji: Uji di Chrome DevTools dengan preset: 375px (iPhone SE), 768px (tablet), 1280px (laptop). Pastikan semua alur utama berjalan normal di ketiga ukuran.
+
+Design Constraint 3 — Tech Stack & Cara Menjalankan Sistem
+Sistem dijalankan langsung tanpa container — setiap anggota tim cukup install Node.js, clone repository, lalu jalankan dua perintah.
+Layer | Teknologi | Alasan
+Frontend | React + Vite + Tailwind CSS | Ecosystem besar, mobile-responsive dengan Tailwind, build cepat dengan Vite
+Backend | Node.js + Express.js | Satu bahasa JS end-to-end, dokumentasi lengkap, performa baik untuk skala organisasi umum
+Database | SQLite (file-based) | Tidak perlu install database server terpisah — cukup satu file .db. Mudah untuk tim pemula, cukup untuk skala 10-200 user.
+ORM | Prisma | Query database pakai JavaScript, bukan SQL mentah. Schema mudah dibaca dan auto-generate migration.
+Real-time Chat & Absensi | Socket.io | Standar industri untuk event real-time (chat & update absensi langsung ke layar ketua)
+File Storage | Local folder (/uploads) + Multer | File disimpan langsung di folder server, tidak perlu setup object storage terpisah. Cukup untuk skala tugas kuliah.
+Scheduler | node-cron | Cek deadline & update status TERLAMBAT otomatis setiap jam
+Autentikasi | JWT + bcrypt | Token berlaku 24 jam, password di-hash sebelum disimpan
+Kirim Email | Nodemailer | Mengirim link undangan (FR-004) dan link reset password (FR-025)
+Generate QR Code | qrcode.react | Render qr_token jadi gambar QR di layar ketua (FR-023)
+Scan QR Code | html5-qrcode | Membaca QR dari kamera smartphone anggota (FR-012)
+Validasi Input | Zod | Validasi data dari form sebelum masuk ke database, mencegah data rusak/kosong
+Export PDF | pdfkit | Generate laporan kinerja jadi file PDF yang bisa diunduh (FR-009)
+Cara Menjalankan | npm install && npm run dev (tanpa container) | Setiap anggota tim cukup clone repo, install Node.js, jalankan backend dan frontend secara terpisah. Tidak perlu paham Docker.
+Deployment (opsional) | Railway / Render (tier gratis) | Jika perlu demo online ke dosen, kedua platform ini mendukung Node.js + SQLite tanpa konfigurasi rumit.
+
+9. Data Entities
+Entitas 1 — USER
+USER: Menyimpan data akun semua pengguna: ketua, koordinator, anggota, klien, dan vendor.
+Primary Key: user_id (UUID)
+Foreign Key: organisasi_id -> ORGANISASI(organisasi_id)
+Atribut: user_id, nama_lengkap, email, password_hash, organisasi_id, role_default, user_type (PANITIA/KLIEN/VENDOR), vendor_type (BARANG/JASA, nullable), vendor_subtype (nullable), tanggal_daftar, status_akun, terakhir_login, reset_token, reset_token_expired
+Business Rule: Email unik di seluruh sistem. Password disimpan dalam bentuk hash (bcrypt). Akun tidak dihapus permanen — gunakan soft delete. reset_token digunakan untuk fitur lupa password, berlaku 1 jam.
+
+Entitas 2 — EVENT
+EVENT: Menyimpan data setiap event yang dibuat oleh ketua beserta statusnya.
+Primary Key: event_id (UUID)
+Foreign Key: organisasi_id -> ORGANISASI, dibuat_oleh -> USER(user_id)
+Atribut: event_id, nama_event, tanggal_pelaksanaan, jenis_event (SEMINAR/FESTIVAL/WORKSHOP/KONSER/LOMBA), status_event, deskripsi (String, nullable), lokasi (String, nullable), tanggal_selesai (DateTime, nullable), organisasi_id, dibuat_oleh, dibuat_pada, invite_token (String, nullable), invite_token_expired (DateTime, nullable), join_code (String, nullable)
+Business Rule: Status hanya bisa berubah berurutan: PERSIAPAN -> AKTIF -> SELESAI. PERSIAPAN: bisa tambah divisi & anggota. AKTIF: absensi hari H bisa dibuka, tidak bisa tambah/hapus divisi. SELESAI: semua locked, hanya bisa lihat laporan. Event SELESAI tidak bisa diubah kembali.
+
+Entitas 3 — TASK
+(Sama dengan v1.3 - detail lengkap...)
+
+Entitas 3b — SUB_TASK
+(Sama dengan v1.3 - detail lengkap...)
+
+Entitas 4 — DIVISI
+(Sama dengan v1.3 - detail lengkap...)
+
+Entitas 5 — ABSENSI
+(Sama dengan v1.3 - detail lengkap...)
+
+Entitas 6 — SESI_ABSENSI
+(Sama dengan v1.3 - detail lengkap...)
+
+Entitas 7 — ORGANISASI
+ORGANISASI: Menyimpan data organisasi (Event Organizer, Sekolah, BEM/UKM, Komunitas) yang menggunakan platform EventCrew.
+Primary Key: organisasi_id (UUID)
+Foreign Key: -
+Atribut: organisasi_id, nama_organisasi, jenis_organisasi (BEM/UKM/EO/SEKOLAH/KOMUNITAS/LAINNYA), kampus (Kampus / Instansi / Kota Alamat), dibuat_pada, status (AKTIF/NONAKTIF)
+Business Rule: Satu organisasi bisa punya banyak event. Satu organisasi bisa punya banyak user. Organisasi tidak dihapus permanen — gunakan soft delete (status NONAKTIF).
+
+Entitas 8 — PENGUMUMAN
+PENGUMUMAN: Menyimpan data pengumuman/broadcast yang dikirim ketua atau koordinator ke panitia.
+Primary Key: pengumuman_id (UUID)
+Foreign Key: event_id -> EVENT, divisi_id -> DIVISI (nullable), dibuat_oleh -> USER(user_id)
+Atribut: pengumuman_id, judul, isi, event_id, divisi_id (null = broadcast ke semua), dibuat_oleh, dibuat_pada, tanggal_waktu (DateTime, nullable), tempat (String, nullable)
+Business Rule: Jika divisi_id null, pengumuman dikirim ke seluruh panitia event. Jika divisi_id diisi, hanya ke anggota divisi tersebut. Hanya ketua yang bisa broadcast ke semua; koordinator hanya ke divisinya.
+
+Entitas 9 — KEANGGOTAAN_EVENT
+KEANGGOTAAN_EVENT: Menyimpan relasi antara user, event, dan divisi beserta role dan status keanggotaan per event.
+Primary Key: keanggotaan_id (UUID)
+Foreign Key: user_id -> USER(user_id), event_id -> EVENT(event_id), divisi_id -> DIVISI(divisi_id)
+Atribut: keanggotaan_id, user_id, event_id, divisi_id, role_event (KETUA/SEKRETARIS/BENDAHARA/KOORDINATOR/ANGGOTA), status (PENDING/AKTIF/NONAKTIF), bergabung_pada, disetujui_oleh
+Business Rule: Satu user hanya bisa punya satu record AKTIF per event (satu divisi per event). Peran Sekretaris dan Bendahara dibatasi masing-masing maksimal 1 user aktif per event. Status PENDING sampai ketua/sekretaris/bendahara setujui. Ketua satu-satunya yang punya role KETUA per event. Setelah NONAKTIF, user tidak bisa akses event tersebut. Transisi: PENDING -> AKTIF (disetujui) atau ditolak; AKTIF -> NONAKTIF; tidak bisa kembali ke PENDING.
+
+Entitas 10 — NOTIFIKASI
+(Sama dengan v1.3 - detail lengkap...)
+
+Entitas 11 — PESAN_CHAT
+PESAN_CHAT: Menyimpan riwayat pesan chat per divisi dengan status soft delete.
+Primary Key: pesan_id (UUID)
+Foreign Key: divisi_id -> DIVISI(divisi_id), pengirim_id -> USER(user_id)
+Atribut: pesan_id, divisi_id, pengirim_id, isi_pesan, dikirim_pada, is_deleted (boolean, default: false)
+Business Rule: Hanya anggota divisi tersebut yang bisa kirim dan lihat pesan. Pesan tidak benar-benar dihapus dari database — is_deleted = true menyembunyikan isi tapi tetap simpan record. Histori pesan dimuat saat user buka halaman chat divisi.
+
+Entitas 12 — DOKUMEN
+DOKUMEN: Menyimpan metadata file yang diupload dengan status soft delete.
+Primary Key: dokumen_id (UUID)
+Foreign Key: event_id -> EVENT(event_id), divisi_id -> DIVISI(divisi_id) [nullable], diupload_oleh -> USER(user_id)
+Atribut: dokumen_id, event_id, divisi_id (null = kategori Umum), kategori (UMUM/KEUANGAN/DIVISI/KLIEN/VENDOR), nama_file, ukuran_byte, tipe_file, file_path, diupload_oleh, diupload_pada, is_deleted (boolean, default: false)
+Business Rule: File fisik tersimpan di folder lokal server di path file_path. Akses dokumen terikat pada kategori dan user_type masing-masing secara ketat.
+
+Entitas 13 — LAPORAN_EVENT
+(Sama dengan v1.3 - detail lengkap...)
+
+10. Smart Template per Jenis Event
+(Sama dengan v1.3 - detail lengkap...)
+
+11. Non-Functional Requirements (NFR)
+(Sama dengan v1.3 - detail lengkap...)
+
+12. Daftar API Endpoint
+12.1 Auth
+Method | Endpoint | Fungsi | Akses
+POST | /api/auth/register | Daftar akun baru (FR-001) | Publik
+POST | /api/auth/login | Login, kembalikan JWT token | Publik
+POST | /api/auth/forgot-password | Kirim email reset password (FR-025) | Publik
+POST | /api/auth/reset-password | Set password baru pakai reset_token | Publik (token)
+GET | /api/auth/me | Ambil data user yang sedang login | Semua role
+
+12.2 Event & Smart Template
+Method | Endpoint | Fungsi | Akses
+POST | /api/events | Buat event baru (FR-002) | Ketua
+GET | /api/events | List semua event milik organisasi | Semua role
+GET | /api/events/:id | Detail satu event | Anggota event
+POST | /api/events/:id/generate-template | Generate smart template sesuai jenis_event (FR-003) | Ketua
+PATCH | /api/events/:id/status | Ubah status PERSIAPAN/AKTIF/SELESAI (FR-008) | Ketua, Sekretaris, Bendahara
+POST | /api/events/:id/invite | Generate link undangan & join code (FR-004) | Ketua, Sekretaris, Bendahara
+
+12.3 Keanggotaan
+Method | Endpoint | Fungsi | Akses
+GET | /api/invites/:token | Dapatkan info detail event untuk undangan / join code | Publik
+POST | /api/invites/:token/join | Anggota/Mitra daftar lewat link undangan atau input join code (status PENDING) | Publik (token)
+GET | /api/events/:id/members/pending | List anggota PENDING (FR-029) | Ketua, Sekretaris, Bendahara
+PATCH | /api/members/:id/approve | Setujui anggota PENDING -> AKTIF (FR-029) | Ketua, Sekretaris, Bendahara
+PATCH | /api/members/:id/reject | Tolak anggota PENDING | Ketua, Sekretaris, Bendahara
+PATCH | /api/members/:id/assign-divisi | Assign anggota ke divisi + role (FR-005) | Ketua
+GET | /api/events/:id/members | List semua anggota event beserta status aktif/tidak aktif | Ketua, Koordinator, Anggota
+POST | /api/events/:id/members/manual | Tambah anggota/mitra secara manual lewat email langsung aktif (FR-035) | Ketua, Sekretaris, Bendahara
+
+12.4 Divisi, Task & Sub-Task
+Method | Endpoint | Fungsi | Akses
+GET | /api/events/:id/divisi | List divisi dalam event | Anggota event
+POST | /api/events/:id/tasks | Buat tugas utama (FR-006) | Ketua, Sekretaris, Bendahara
+GET | /api/events/:id/tasks | List semua tugas event | Anggota event
+GET | /api/tasks/:id | Detail tugas + daftar sub-tugasnya | Anggota event
+POST | /api/tasks/:id/subtasks | Koordinator buat sub-tugas (FR-013) | Koordinator
+PATCH | /api/subtasks/:id/status | Anggota update status sub-tugas (FR-011) | Anggota (pemilik)
+PATCH | /api/tasks/:id/status | Koordinator tandai tugas utama Done | Koordinator
+POST | /api/events/:id/divisi | Tambah divisi baru (FR-030) | Ketua, Sekretaris, Bendahara
+PATCH | /api/divisi/:id | Ubah nama / koordinator divisi (FR-030) | Ketua
+DELETE | /api/divisi/:id | Hapus divisi (hanya saat PERSIAPAN) | Ketua
+PATCH | /api/tasks/:id | Edit / reassign tugas utama (FR-031) | Ketua
+DELETE | /api/tasks/:id | Hapus tugas utama (FR-031) | Ketua
+PATCH | /api/subtasks/:id | Edit / reassign sub-tugas (FR-031) | Koordinator
+DELETE | /api/subtasks/:id | Hapus sub-tugas (FR-031) | Koordinator
+
+12.5 Dashboard & Laporan
+Method | Endpoint | Fungsi | Akses
+GET | /api/events/:id/dashboard | Data ringkasan untuk polling 5 detik (FR-007) | Ketua, Koordinator, Anggota
+POST | /api/events/:id/generate-laporan | Trigger kalkulasi LAPORAN_EVENT (FR-019) | Ketua, Koordinator
+GET | /api/events/:id/laporan | Ambil data laporan kinerja (FR-008) | Ketua, Koordinator, Anggota
+GET | /api/events/:id/laporan/export-pdf | Generate dan unduh laporan PDF (FR-009) | Ketua, Sekretaris, Bendahara
+
+12.6 Absensi QR
+Method | Endpoint | Fungsi | Akses
+POST | /api/events/:id/sesi-absensi | Buat sesi absensi baru (FR-023) | Ketua, Sekretaris, Bendahara
+GET | /api/sesi-absensi/:id/qr | Ambil qr_token aktif untuk ditampilkan | Ketua, Sekretaris, Bendahara
+POST | /api/sesi-absensi/:id/scan | Anggota submit scan QR (FR-012) | Anggota event
+POST | /api/sesi-absensi/:id/manual-absen | Absen manual anggota oleh panitia inti (FR-036) | Ketua, Sekretaris, Bendahara
+POST | /api/sesi-absensi/:id/self-absen | Absen mandiri tanpa scan QR untuk panitia inti (FR-037) | Ketua, Sekretaris, Bendahara
+GET | /api/sesi-absensi/:id/rekap | Rekap siapa sudah/belum hadir (FR-024) | Ketua, Sekretaris, Bendahara, Koordinator
+
+12.7 Chat, Dokumen, Notifikasi, Pengumuman
+Method | Endpoint | Fungsi | Akses
+GET | /api/divisi/:id/chat | Ambil histori chat divisi (load awal) | Anggota divisi
+POST | /api/events/:id/documents | Upload dokumen via Multer (FR-015) | Anggota event, Klien, Vendor
+GET | /api/events/:id/documents | List dokumen sesuai kategori akses user | Anggota event, Klien, Vendor
+GET | /api/documents/:id/download | Download file dokumen | Sesuai kategori
+GET | /api/notifications | List notifikasi milik user (polling 10 detik) | Semua role
+PATCH | /api/notifications/:id/read | Tandai notifikasi sudah dibaca | Pemilik notifikasi
+POST | /api/events/:id/pengumuman | Buat pengumuman broadcast (FR-021) | Ketua, Koordinator
+GET | /api/events/:id/pengumuman | List pengumuman event/divisi | Anggota event
+DELETE | /api/documents/:id | Hapus dokumen, soft delete (FR-032) | Pengupload / Ketua
+PATCH | /api/pengumuman/:id | Edit pengumuman (FR-033) | Pembuat
+DELETE | /api/pengumuman/:id | Hapus pengumuman (FR-033) | Pembuat
+DELETE | /api/chat/:pesan_id | Hapus pesan chat, soft delete (FR-034) | Pengirim / Koord
+
+13. Spesifikasi Socket.io Events
+(Sama dengan v1.3...)
+
+14. Struktur Folder Project
+14.1 Backend (Node.js + Express + Prisma)
+/backend/prisma/schema.prisma - Definisi semua 14 entitas database
+/backend/src/routes/ - File routing per modul (auth.js, event.js, tasks.js, absensi.js, chat.js, documents.js, divisi.js, member.js, subtasks.js, etc.)
+/backend/src/controllers/ - Logic dari tiap endpoint
+/backend/src/middleware/ - auth.js (JWT), roleCheck.js (role verification)
+/backend/src/sockets/ - chatHandler.js, absensiHandler.js
+/backend/src/jobs/ - deadlineChecker.js, inactiveMemberChecker.js, sesiCloser.js (semua cron job via node-cron)
+/backend/src/utils/ - emailSender.js, pdfGenerator.js, qrToken.js, notificationHelper.js
+/backend/uploads/ - Folder dokumen lokal
+/backend/dev.db - Database SQLite
+/backend/.env - Env variables (JWT_SECRET, dll)
+/backend/server.js - Server entry point
+
+14.2 Frontend (React + Vite)
+/frontend/src/pages/ - Halaman aplikasi: Login.jsx, Register.jsx, ForgotPassword.jsx, ResetPassword.jsx, EventList.jsx, CreateEvent.jsx, EventDetail.jsx, PendingMembers.jsx, DashboardEvent.jsx, TaskListPage.jsx, TaskDetailPage.jsx, AbsensiPage.jsx, QRDisplayPage.jsx, ScanQRPage.jsx, RekapAbsensi.jsx, ChatDivisi.jsx, DokumenPage.jsx, PengumumanPage.jsx, LaporanPage.jsx, EditTask.jsx, InviteJoinPage.jsx, NotFound.jsx
+/frontend/src/components/ - Reusable components (ProtectedRoute.jsx, Sidebar.jsx, ProgressBar.jsx, TaskCard.jsx, etc.)
+/frontend/src/hooks/ - useAuth.js, useSocket.js, usePolling.js
+/frontend/src/api/ - Wrapper axios per modul
+/frontend/src/context/ - AuthContext.jsx
+/frontend/src/utils/ - Utility functions
+/frontend/.env - Environment variables
+
+14.3 Cara Menjalankan Project (Tanpa Docker)
+(Sama dengan v1.3...)
+
+15. Release Plan — 3 Milestone
+(Sama dengan v1.3 - disesuaikan untuk panitia/mitra secara umum...)

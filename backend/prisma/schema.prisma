@@ -1,0 +1,346 @@
+// EventCrew - Prisma Schema
+// All 14 entities from PRD Section 9
+// Database: SQLite with UUID primary keys
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../dev.db"
+}
+
+// ============================================
+// Entitas 7 — ORGANISASI
+// ============================================
+model Organisasi {
+  organisasi_id    String   @id @default(uuid())
+  nama_organisasi  String
+  jenis_organisasi String   // BEM, UKM, HMPS, LAINNYA
+  kampus           String
+  dibuat_pada      DateTime @default(now())
+  status           String   @default("AKTIF") // AKTIF, NONAKTIF
+
+  // Relations
+  users  User[]
+  events Event[]
+
+  @@map("organisasi")
+}
+
+// ============================================
+// Entitas 1 — USER
+// ============================================
+model User {
+  user_id             String    @id @default(uuid())
+  nama_lengkap        String
+  email               String    @unique
+  password_hash       String
+  organisasi_id       String?
+  role_default        String    @default("ANGGOTA") // KETUA, KOORDINATOR, ANGGOTA
+  user_type           String    @default("PANITIA") // PANITIA, KLIEN, VENDOR
+  vendor_type         String?   // BARANG, JASA
+  vendor_subtype      String?   // CATERING_MAKANAN, LED_SCREEN, PERCETAKAN
+  tanggal_daftar      DateTime  @default(now())
+  status_akun         String    @default("AKTIF") // AKTIF, NONAKTIF
+  terakhir_login      DateTime?
+  reset_token         String?
+  reset_token_expired DateTime?
+
+  // Relations
+  organisasi           Organisasi?         @relation(fields: [organisasi_id], references: [organisasi_id])
+  events_dibuat        Event[]             @relation("EventDibuatOleh")
+  tasks_assigned       Task[]              @relation("TaskAssignee")
+  tasks_dibuat         Task[]              @relation("TaskDibuatOleh")
+  subtasks_assigned    SubTask[]           @relation("SubTaskAssignee")
+  subtasks_dibuat      SubTask[]           @relation("SubTaskDibuatOleh")
+  divisi_koordinator   Divisi[]            @relation("DivisiKoordinator")
+  absensi              Absensi[]
+  sesi_absensi_dibuat  SesiAbsensi[]       @relation("SesiDibuatOleh")
+  pengumuman_dibuat    Pengumuman[]        @relation("PengumumanDibuatOleh")
+  keanggotaan          KeanggotaanEvent[]  @relation("KeanggotaanUser")
+  keanggotaan_approved KeanggotaanEvent[]  @relation("KeanggotaanDisetujuiOleh")
+  notifikasi           Notifikasi[]
+  pesan_chat           PesanChat[]
+  dokumen_diupload     Dokumen[]           @relation("DokumenDiuploadOleh")
+
+  @@map("users")
+}
+
+// ============================================
+// Entitas 2 — EVENT
+// ============================================
+model Event {
+  event_id             String   @id @default(uuid())
+  nama_event           String
+  tanggal_pelaksanaan  DateTime
+  jenis_event          String   // SEMINAR, FESTIVAL, WORKSHOP, KONSER, LOMBA
+  status_event         String   @default("PERSIAPAN") // PERSIAPAN, AKTIF, SELESAI
+  deskripsi            String?
+  lokasi               String?
+  tanggal_selesai      DateTime?
+  organisasi_id        String
+  dibuat_oleh          String
+  dibuat_pada          DateTime @default(now())
+  invite_token         String?
+  invite_token_expired DateTime?
+  join_code            String?
+
+  // Relations
+  organisasi     Organisasi         @relation(fields: [organisasi_id], references: [organisasi_id])
+  pembuat        User               @relation("EventDibuatOleh", fields: [dibuat_oleh], references: [user_id])
+  divisi         Divisi[]
+  tasks          Task[]
+  sesi_absensi   SesiAbsensi[]
+  pengumuman     Pengumuman[]
+  keanggotaan    KeanggotaanEvent[]
+  notifikasi     Notifikasi[]
+  dokumen        Dokumen[]
+  laporan_event  LaporanEvent?
+
+  @@map("events")
+}
+
+// ============================================
+// Entitas 3 — TASK
+// ============================================
+model Task {
+  task_id      String   @id @default(uuid())
+  judul_tugas  String
+  deskripsi    String?
+  deadline     DateTime
+  prioritas    String   @default("MEDIUM") // HIGH, MEDIUM, LOW
+  status_tugas String   @default("TODO") // TODO, IN_PROGRESS, DONE, TERLAMBAT
+  event_id     String
+  divisi_id    String?
+  assignee_id  String?
+  dibuat_oleh  String
+  dibuat_pada  DateTime @default(now())
+
+  // Relations
+  event    Event    @relation(fields: [event_id], references: [event_id])
+  divisi   Divisi?  @relation(fields: [divisi_id], references: [divisi_id])
+  assignee User?    @relation("TaskAssignee", fields: [assignee_id], references: [user_id])
+  pembuat  User     @relation("TaskDibuatOleh", fields: [dibuat_oleh], references: [user_id])
+  subtasks SubTask[]
+
+  @@map("tasks")
+}
+
+// ============================================
+// Entitas 3b — SUB_TASK
+// ============================================
+model SubTask {
+  subtask_id     String   @id @default(uuid())
+  judul_subtask  String
+  deskripsi      String?
+  deadline       DateTime
+  status         String   @default("TODO") // TODO, IN_PROGRESS, DONE, TERLAMBAT
+  task_id        String
+  assignee_id    String?
+  dibuat_oleh    String
+  dibuat_pada    DateTime @default(now())
+
+  // Relations
+  task     Task  @relation(fields: [task_id], references: [task_id])
+  assignee User? @relation("SubTaskAssignee", fields: [assignee_id], references: [user_id])
+  pembuat  User  @relation("SubTaskDibuatOleh", fields: [dibuat_oleh], references: [user_id])
+
+  @@map("sub_tasks")
+}
+
+// ============================================
+// Entitas 4 — DIVISI
+// ============================================
+model Divisi {
+  divisi_id      String   @id @default(uuid())
+  nama_divisi    String
+  event_id       String
+  koordinator_id String?
+  dibuat_pada    DateTime @default(now())
+
+  // Relations
+  event       Event              @relation(fields: [event_id], references: [event_id])
+  koordinator User?              @relation("DivisiKoordinator", fields: [koordinator_id], references: [user_id])
+  tasks       Task[]
+  pengumuman  Pengumuman[]
+  keanggotaan KeanggotaanEvent[]
+  pesan_chat  PesanChat[]
+  dokumen     Dokumen[]
+
+  // Unique constraint: nama_divisi + event_id
+  @@unique([nama_divisi, event_id])
+  @@map("divisi")
+}
+
+// ============================================
+// Entitas 5 — ABSENSI
+// ============================================
+model Absensi {
+  absensi_id   String    @id @default(uuid())
+  user_id      String
+  sesi_id      String
+  waktu_scan   DateTime?
+  status_hadir String    @default("TIDAK_HADIR") // HADIR, TIDAK_HADIR
+
+  // Relations
+  user User        @relation(fields: [user_id], references: [user_id])
+  sesi SesiAbsensi @relation(fields: [sesi_id], references: [sesi_id])
+
+  // Unique constraint: user_id + sesi_id (satu user satu scan per sesi)
+  @@unique([user_id, sesi_id])
+  @@map("absensi")
+}
+
+// ============================================
+// Entitas 6 — SESI_ABSENSI
+// ============================================
+model SesiAbsensi {
+  sesi_id       String   @id @default(uuid())
+  nama_sesi     String
+  event_id      String
+  jenis_sesi    String   // RAPAT, HARI_H
+  waktu_mulai   DateTime
+  waktu_selesai DateTime
+  status_sesi   String   @default("AKTIF") // AKTIF, TUTUP
+  qr_token      String   @unique @default(uuid())
+  dibuat_oleh   String
+  dibuat_pada   DateTime @default(now())
+
+  // Relations
+  event   Event     @relation(fields: [event_id], references: [event_id])
+  pembuat User      @relation("SesiDibuatOleh", fields: [dibuat_oleh], references: [user_id])
+  absensi Absensi[]
+
+  @@map("sesi_absensi")
+}
+
+// ============================================
+// Entitas 8 — PENGUMUMAN
+// ============================================
+model Pengumuman {
+  pengumuman_id String    @id @default(uuid())
+  judul         String
+  isi           String
+  event_id      String
+  divisi_id     String?   // null = broadcast ke semua
+  dibuat_oleh   String
+  dibuat_pada   DateTime  @default(now())
+  tanggal_waktu DateTime?
+  tempat        String?
+
+  // Relations
+  event   Event   @relation(fields: [event_id], references: [event_id])
+  divisi  Divisi? @relation(fields: [divisi_id], references: [divisi_id])
+  pembuat User    @relation("PengumumanDibuatOleh", fields: [dibuat_oleh], references: [user_id])
+
+  @@map("pengumuman")
+}
+
+// ============================================
+// Entitas 9 — KEANGGOTAAN_EVENT
+// ============================================
+model KeanggotaanEvent {
+  keanggotaan_id String    @id @default(uuid())
+  user_id        String
+  event_id       String
+  divisi_id      String?
+  role_event     String    @default("ANGGOTA") // KETUA, KOORDINATOR, ANGGOTA
+  status         String    @default("PENDING") // PENDING, AKTIF, NONAKTIF
+  bergabung_pada DateTime  @default(now())
+  disetujui_oleh String?
+
+  // Relations
+  user      User    @relation("KeanggotaanUser", fields: [user_id], references: [user_id])
+  event     Event   @relation(fields: [event_id], references: [event_id])
+  divisi    Divisi? @relation(fields: [divisi_id], references: [divisi_id])
+  approver  User?   @relation("KeanggotaanDisetujuiOleh", fields: [disetujui_oleh], references: [user_id])
+
+  @@map("keanggotaan_event")
+}
+
+// ============================================
+// Entitas 10 — NOTIFIKASI
+// ============================================
+model Notifikasi {
+  notif_id    String   @id @default(uuid())
+  user_id     String
+  event_id    String
+  judul       String
+  isi         String
+  tipe        String   // TUGAS_BARU, DEADLINE, PENGUMUMAN, SISTEM, PERSETUJUAN
+  is_read     Boolean  @default(false)
+  link_ref    String?
+  dibuat_pada DateTime @default(now())
+
+  // Relations
+  user  User  @relation(fields: [user_id], references: [user_id])
+  event Event @relation(fields: [event_id], references: [event_id])
+
+  @@map("notifikasi")
+}
+
+// ============================================
+// Entitas 11 — PESAN_CHAT
+// ============================================
+model PesanChat {
+  pesan_id     String   @id @default(uuid())
+  divisi_id    String
+  pengirim_id  String
+  isi_pesan    String
+  dikirim_pada DateTime @default(now())
+  is_deleted   Boolean  @default(false)
+
+  // Relations
+  divisi   Divisi @relation(fields: [divisi_id], references: [divisi_id])
+  pengirim User   @relation(fields: [pengirim_id], references: [user_id])
+
+  @@map("pesan_chat")
+}
+
+// ============================================
+// Entitas 12 — DOKUMEN
+// ============================================
+model Dokumen {
+  dokumen_id    String   @id @default(uuid())
+  event_id      String
+  divisi_id     String?  // null = kategori Umum
+  kategori      String   @default("UMUM") // UMUM, KEUANGAN, DIVISI
+  nama_file     String
+  ukuran_byte   Int
+  tipe_file     String
+  file_path     String
+  diupload_oleh String
+  diupload_pada DateTime @default(now())
+  is_deleted    Boolean  @default(false)
+
+  // Relations
+  event    Event   @relation(fields: [event_id], references: [event_id])
+  divisi   Divisi? @relation(fields: [divisi_id], references: [divisi_id])
+  uploader User    @relation("DokumenDiuploadOleh", fields: [diupload_oleh], references: [user_id])
+
+  @@map("dokumen")
+}
+
+// ============================================
+// Entitas 13 — LAPORAN_EVENT
+// ============================================
+model LaporanEvent {
+  laporan_id             String   @id @default(uuid())
+  event_id               String   @unique // 1 event 1 laporan
+  total_tugas            Int      @default(0)
+  tugas_selesai          Int      @default(0)
+  tugas_terlambat        Int      @default(0)
+  tugas_tidak_selesai    Int      @default(0)
+  persen_selesai         Float    @default(0)
+  data_per_divisi        String   @default("[]") // JSON string
+  data_kehadiran         String   @default("[]") // JSON string
+  ranking_divisi_terbaik String?
+  dibuat_pada            DateTime @default(now())
+
+  // Relations
+  event Event @relation(fields: [event_id], references: [event_id])
+
+  @@map("laporan_event")
+}
