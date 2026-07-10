@@ -7,6 +7,9 @@ import { Loader2, ArrowLeft, Users, CheckCircle2 } from 'lucide-react';
 
 // Tentukan SOCKET_URL secara dinamis berdasarkan hostname dan port agar bisa diakses lewat jaringan lokal maupun tunnel publik (ngrok/localtunnel)
 const getSocketUrl = () => {
+  if (import.meta.env.VITE_SOCKET_URL) return import.meta.env.VITE_SOCKET_URL;
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace('/api', '');
+  
   if (typeof window !== 'undefined' && window.location.hostname) {
     const port = window.location.port;
     if (port && (port === '5173' || port === '5174' || port === '3000')) {
@@ -14,7 +17,7 @@ const getSocketUrl = () => {
     }
     return window.location.origin;
   }
-  return import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:3000';
+  return 'http://localhost:3000';
 };
 
 const SOCKET_URL = getSocketUrl();

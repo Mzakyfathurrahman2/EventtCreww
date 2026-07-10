@@ -4,6 +4,9 @@ import toast from 'react-hot-toast';
 
 // Tentukan API_URL secara dinamis berdasarkan hostname dan port agar bisa diakses lewat jaringan lokal maupun tunnel publik (ngrok/localtunnel)
 const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
   if (typeof window !== 'undefined' && window.location.hostname) {
     const port = window.location.port;
     if (port && (port === '5173' || port === '5174' || port === '3000')) {
@@ -11,7 +14,7 @@ const getApiUrl = () => {
     }
     return `${window.location.origin}/api`;
   }
-  return import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  return 'http://localhost:3000/api';
 };
 
 const API_URL = getApiUrl();
