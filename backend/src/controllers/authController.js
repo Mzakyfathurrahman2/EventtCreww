@@ -1,11 +1,10 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const { v4: uuidv4 } = require('uuid');
 const { sendEmail } = require('../utils/emailSender');
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
 // Schema Validation (Zod)

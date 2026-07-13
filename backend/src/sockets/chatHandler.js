@@ -4,8 +4,7 @@
 // Events: join-divisi-chat, send-message, new-message
 // ============================================
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 const setupChatSocket = (io, socket) => {
   // Client joins a division chat room

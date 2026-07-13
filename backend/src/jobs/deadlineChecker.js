@@ -5,10 +5,7 @@
 //   - Kirim notifikasi ke koordinator/assignee
 // ============================================
 const cron = require('node-cron');
-const { PrismaClient } = require('@prisma/client');
-
-// Singleton Prisma client (jangan buat baru di dalam schedule)
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 const startDeadlineChecker = () => {
   // Jalankan setiap jam (menit ke-0)

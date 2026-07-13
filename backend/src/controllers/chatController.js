@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 // 1. Import library AI dari Google
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 

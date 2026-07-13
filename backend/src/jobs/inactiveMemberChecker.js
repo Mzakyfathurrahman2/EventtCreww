@@ -5,10 +5,7 @@
 //   - Kirim notifikasi pengingat
 // ============================================
 const cron = require('node-cron');
-const { PrismaClient } = require('@prisma/client');
-
-// Singleton Prisma client
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 const startInactiveMemberChecker = () => {
   // Jalankan setiap hari tengah malam

@@ -4,8 +4,7 @@
 // Returns: progress per divisi, tugas terlambat,
 //          anggota tidak aktif, deadline terdekat.
 // ============================================
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 const dashboardController = {
   getDashboardData: async (req, res, next) => {

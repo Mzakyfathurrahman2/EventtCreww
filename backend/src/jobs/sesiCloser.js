@@ -5,8 +5,7 @@
 // - Mark absent members as TIDAK_HADIR
 // ============================================
 const cron = require('node-cron');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 const { notifySesiDitutup } = require('../sockets/absensiHandler');
 let io = null;
 

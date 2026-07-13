@@ -5,8 +5,7 @@
 //   SubTask: subtask_id, judul_subtask, status, dibuat_oleh, assignee_id
 //   Notifikasi: event_id, judul, isi, tipe
 // ============================================
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // ── Helper: kirim notifikasi ──────────────────────────────────────────────────
 const sendNotif = async (user_id, event_id, judul, isi, tipe = 'TUGAS_BARU') => {
