@@ -2,17 +2,23 @@ import axios from 'axios';
 
 import toast from 'react-hot-toast';
 
-// Tentukan API_URL secara dinamis berdasarkan hostname dan port agar bisa diakses lewat jaringan lokal maupun tunnel publik (ngrok/localtunnel)
+// Tentukan API_URL secara dinamis berdasarkan environment variable atau hostname
 const getApiUrl = () => {
-  if (import.meta.env.VITE_API_URL) {
+  // Prioritas 1: gunakan env variable yang sudah dikonfigurasi (di Vercel maupun .env lokal)
+  if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== '/api') {
     return import.meta.env.VITE_API_URL;
   }
-  if (typeof window !== 'undefined' && window.location.hostname) {
+  // Prioritas 2: Jika di Vercel (tidak ada port), kita TIDAK bisa pakai /api karena tidak ada proxy
+  // Tapi jika ada VITE_API_URL = '/api' berarti di localhost pakai Vite proxy
+  if (typeof window !== 'undefined') {
     const port = window.location.port;
-    if (port && (port === '5173' || port === '5174' || port === '3000')) {
-      return `${window.location.protocol}//${window.location.hostname}:3000/api`;
+    // Di localhost development (port 5173/5174), pakai proxy Vite
+    if (port === '5173' || port === '5174') {
+      return '/api';
     }
-    return `${window.location.origin}/api`;
+    // Di production (Vercel) tanpa port, WAJIB pakai URL Render langsung
+    // Hardcode sebagai fallback terakhir
+    return 'https://eventtcreww.onrender.com/api';
   }
   return 'http://localhost:3000/api';
 };
