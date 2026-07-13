@@ -1,5 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+// 1. Import library AI dari Google
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const isPrivateLeadershipRoom = (name) => {
   const lowerName = name.toLowerCase();
@@ -279,6 +281,84 @@ const chatController = {
     } catch (error) {
       console.error('[deleteMessage Error]', error);
       res.status(500).json({ error: true, message: 'Gagal menghapus pesan' });
+    }
+  },
+
+  // ==========================================
+  // GET /api/divisi/:id/chat/summary
+  // Fitur AI untuk meringkas chat menggunakan Gemini
+  // ==========================================
+  summarizeChat: async (req, res, next) => {
+    try {
+      const { id: divisi_id } = req.params;
+      const { custom_prompt } = req.query;
+
+      
+      // Mengambil API Key dari .env dan menghapus spasi/enter tersembunyi (Sangat penting di Windows)
+      const apiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : null; 
+      if (!apiKey) {
+        return res.status(500).json({ error: true, message: 'API Key Gemini belum disetting di backend (.env)' });
+      }
+
+      // Ambil 50 pesan terakhir dari divisi ini
+      const messages = await prisma.pesanChat.findMany({
+        where: { divisi_id, is_deleted: false },
+        include: { pengirim: { select: { nama_lengkap: true } } },
+        orderBy: { dikirim_pada: 'desc' },
+        take: 50
+      });
+
+      if (messages.length === 0) {
+        return res.json({ data: 'Belum ada pesan untuk diringkas.' });
+      }
+
+      // Format pesan menjadi teks percakapan (dikembalikan ke urutan awal/terlama ke terbaru)
+      const transcript = messages.reverse().map(msg => {
+        return `${msg.pengirim.nama_lengkap}: ${msg.isi_pesan}`;
+      }).join('\n');
+
+      // 2. Inisialisasi Gemini AI
+      const genAI = new GoogleGenerativeAI(apiKey);
+      // Menggunakan model Gemini generasi ke-3 (gemini-3.5-flash) yang tersedia di akun Anda
+      const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+
+      // 3. Buat instruksi (Prompt) untuk AI
+      let prompt = `Anda adalah asisten cerdas untuk kepanitiaan event (EventCrew). 
+Tugas Anda adalah meringkas percakapan chat grup kepanitiaan berikut dalam bahasa Indonesia.
+Tolong berikan ringkasan singkat, dan jika ada tugas/action items yang disepakati, tolong tuliskan dengan format bullet points.
+Jika percakapan hanya sapaan biasa tanpa informasi penting, sebutkan saja bahwa tidak ada informasi krusial.`;
+
+      if (custom_prompt && custom_prompt.trim() !== '') {
+        prompt += `\n\nINSTRUKSI KHUSUS DARI PENGGUNA:\n"${custom_prompt}"\n(Tolong prioritaskan dan ikuti instruksi khusus ini!)`;
+      }
+
+      prompt += `\n\nBerikut percakapannya:\n"""\n${transcript}\n"""`;
+
+      // 4. Minta AI menghasilkan ringkasan
+      const result = await model.generateContent(prompt);
+      const summary = result.response.text();
+
+      // Kembalikan hasil ringkasan ke frontend
+      res.json({ data: summary });
+    } catch (error) {
+      console.error('[summarizeChat Error]', error);
+      
+      let extraInfo = '';
+      try {
+        const apiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : '';
+        if (error.message && error.message.includes('404')) {
+          const fetchRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+          const data = await fetchRes.json();
+          if (data.models) {
+            const modelNames = data.models.map(m => m.name.replace('models/', '')).join(', ');
+            extraInfo = `\n\nModel yang tersedia untuk API Key Anda: ${modelNames}`;
+          } else {
+             extraInfo = `\n\nRespon API: ${JSON.stringify(data)}`;
+          }
+        }
+      } catch (e) {}
+
+      res.status(500).json({ error: true, message: 'Gagal membuat ringkasan AI', detail: error.message + extraInfo });
     }
   }
 };

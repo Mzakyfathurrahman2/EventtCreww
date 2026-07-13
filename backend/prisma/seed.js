@@ -47,13 +47,11 @@ async function main() {
   const passwordHash = await bcrypt.hash('password123', 10);
   const createdUsers = {};
   
-  // Ketua
-  for(let i=1; i<=2; i++) {
-    const email = `ketua${i}@demo.com`;
-    createdUsers[email] = await prisma.user.create({
-      data: { email, nama_lengkap: `Ketua ${i}`, role_default: 'KETUA', organisasi_id: org1.organisasi_id, password_hash: passwordHash }
-    });
-  }
+  // Ketua (Only 1 Ketua Pelaksana)
+  const emailKetua = `ketua1@demo.com`;
+  createdUsers[emailKetua] = await prisma.user.create({
+    data: { email: emailKetua, nama_lengkap: `Ketua Pelaksana`, role_default: 'KETUA', organisasi_id: org1.organisasi_id, password_hash: passwordHash }
+  });
 
   // Koordinator
   const koorNames = ['Acara', 'Humas', 'Pubdekdok', 'Konsumsi', 'Perlengkapan', 'Keamanan'];
@@ -72,7 +70,7 @@ async function main() {
     });
   }
 
-  // Vendor
+  // Vendor & Klien
   const vendors = [
     { email: 'vendor1@demo.com', nama: 'Vendor Sound', type: 'JASA', sub: 'SOUND_SYSTEM' },
     { email: 'vendor2@demo.com', nama: 'Vendor Tenda', type: 'BARANG', sub: 'PERLENGKAPAN_TENDA' },
@@ -83,6 +81,11 @@ async function main() {
       data: { email: v.email, nama_lengkap: v.nama, role_default: 'ANGGOTA', user_type: 'VENDOR', vendor_type: v.type, vendor_subtype: v.sub, organisasi_id: org1.organisasi_id, password_hash: passwordHash }
     });
   }
+
+  // Klien
+  createdUsers['klien1@demo.com'] = await prisma.user.create({
+    data: { email: 'klien1@demo.com', nama_lengkap: 'Bapak Rektor (Klien)', role_default: 'ANGGOTA', user_type: 'KLIEN', organisasi_id: org1.organisasi_id, password_hash: passwordHash }
+  });
 
   // 4. Events
   const event1 = await prisma.event.create({
@@ -152,18 +155,28 @@ async function main() {
     }
   }
 
+  // Tambahkan Klien & Vendor ke event
+  await prisma.keanggotaanEvent.create({
+    data: { user_id: createdUsers['klien1@demo.com'].user_id, event_id: event1.event_id, divisi_id: null, role_event: 'ANGGOTA', status: 'AKTIF', disetujui_oleh: createdUsers['ketua1@demo.com'].user_id }
+  });
+  for(const v of vendors) {
+    await prisma.keanggotaanEvent.create({
+      data: { user_id: createdUsers[v.email].user_id, event_id: event1.event_id, divisi_id: null, role_event: 'ANGGOTA', status: 'AKTIF', disetujui_oleh: createdUsers['ketua1@demo.com'].user_id }
+    });
+  }
+
   // 7. Tasks & Subtasks (Massive Data for MIS Visualization)
   const taskDistribution = [
     // [Total, DONE, IN_PROGRESS, TODO, TERLAMBAT]
-    { divIdx: 0, div: 'Acara', counts: [15, 6, 5, 2, 2] }, 
-    { divIdx: 1, div: 'Humas', counts: [10, 4, 3, 3, 0] },
-    { divIdx: 2, div: 'Pubdekdok', counts: [25, 12, 6, 4, 3] }, // Highlight comparison Acara vs Pubdekdok
-    { divIdx: 3, div: 'Konsumsi', counts: [8, 3, 2, 2, 1] },
-    { divIdx: 4, div: 'Perlengkapan', counts: [12, 5, 4, 2, 1] },
-    { divIdx: 5, div: 'Keamanan', counts: [6, 2, 2, 2, 0] },
+    { divIdx: 0, div: 'Acara', counts: [15, 6, 5, 2, 2], names: ['Menyusun Rundown Acara', 'Menghubungi Pembicara/Guest Star', 'Menyiapkan Teks MC', 'Breifing Pengisi Acara', 'Simulasi Hari H', 'Mengatur Jadwal Check-in', 'Konfirmasi Kehadiran VIP', 'Finalisasi Susunan Acara', 'Membuat Cue Card', 'Technical Meeting Pengisi Acara', 'Gladi Kotor', 'Gladi Bersih', 'Briefing Panitia Hari H', 'Evaluasi Harian', 'Laporan Akhir Acara'] }, 
+    { divIdx: 1, div: 'Humas', counts: [10, 4, 3, 3, 0], names: ['Drafting Undangan VIP', 'Blast Email Peserta', 'Mengurus Izin Tempat', 'Menghubungi Media Partner', 'Follow Up Sponsorship', 'Menyusun Press Release', 'Menyebarkan Undangan Media', 'Konfirmasi Media Partner', 'Mengurus Izin Keramaian', 'Pendampingan Tamu VIP'] },
+    { divIdx: 2, div: 'Pubdekdok', counts: [25, 12, 6, 4, 3], names: ['Desain Poster Utama', 'Membuat Teaser Video', 'Desain ID Card Panitia', 'Sewa Kamera & Drone', 'Edit Video After Movie', 'Live Streaming Setup', 'Desain Banner & Spanduk', 'Desain Post Instagram', 'Desain Sertifikat', 'Desain Virtual Background', 'Desain Kaos Panitia', 'Cetak ID Card', 'Cetak Banner & Spanduk', 'Briefing Tim Dokumentasi', 'Plotting Fotografer', 'Edit Foto Harian', 'Upload Materi Promosi', 'Pembuatan Caption Sosmed', 'Pembuatan Tiktok/Reels', 'Backup Data Dokumentasi', 'Desain Name Tag Tamu', 'Desain Backdrop Panggung', 'Pembuatan Video Bumper', 'Desain Twibbon', 'Laporan Publikasi'] },
+    { divIdx: 3, div: 'Konsumsi', counts: [8, 3, 2, 2, 1], names: ['Mencari Vendor Katering', 'Memesan Snack Box', 'Distribusi Makanan Panitia', 'Siapkan VIP Meals', 'Cek Kebutuhan Air Mineral', 'Menyusun Menu Makanan', 'Konfirmasi Jumlah Pesanan', 'Mengatur Alur Distribusi Makanan'] },
+    { divIdx: 4, div: 'Perlengkapan', counts: [12, 5, 4, 2, 1], names: ['Sewa Sound System & Lighting', 'Pemasangan Tenda & Kursi', 'Loading Barang ke Venue', 'Cek Ketersediaan HT', 'Bongkar Muat Panggung', 'List Kebutuhan Divisi', 'Sewa Proyektor & Screen', 'Sewa AC Portable', 'Sewa Genset', 'Check Kesiapan Alat H-1', 'Koordinasi Layout Venue', 'Pengembalian Barang Sewaan'] },
+    { divIdx: 5, div: 'Keamanan', counts: [6, 2, 2, 2, 0], names: ['Briefing Tim Keamanan', 'Plotting Area Parkir', 'Menyiapkan Barikade', 'Koordinasi dengan Polsek', 'Pengecekan Tas Pengunjung', 'Pembuatan SOP Keamanan'] },
   ];
 
-  let taskCounter = 1;
+  let globalTaskCounter = 0;
   const now = new Date();
   
   for(const config of taskDistribution) {
@@ -177,10 +190,12 @@ async function main() {
       const deadline = new Date();
       deadline.setDate(now.getDate() + deadlineOffsetDays);
       
+      const taskName = config.names[createdTasks % config.names.length] || `Tugas ${config.div} #${createdTasks + 1}`;
+      
       const t = await prisma.task.create({
         data: {
-          judul_tugas: `Tugas ${config.div} #${taskCounter}`,
-          deskripsi: `Detail pelaksanaan tugas ke-${taskCounter} divisi ${config.div}`,
+          judul_tugas: taskName,
+          deskripsi: `Tugas ini merupakan tanggung jawab divisi ${config.div} untuk memastikan acara berjalan lancar. Pastikan untuk selalu update progres pekerjaan.`,
           deadline: deadline,
           status_tugas: status,
           event_id: event1.event_id,
@@ -189,13 +204,13 @@ async function main() {
           dibuat_oleh: createdUsers[`koordinator${config.divIdx+1}@demo.com`].user_id,
         }
       });
-      taskCounter++;
+      globalTaskCounter++;
       
       // 2 Subtasks per task
       for(let s=1; s<=2; s++) {
         await prisma.subTask.create({
           data: {
-            judul_subtask: `Subtask ${s} untuk ${t.judul_tugas}`,
+            judul_subtask: `Tahapan ke-${s}: ${taskName}`,
             deadline: deadline,
             status: status === 'DONE' ? 'DONE' : (s === 1 ? 'DONE' : status),
             task_id: t.task_id,
@@ -214,12 +229,19 @@ async function main() {
   }
   
   // Create some tasks for KETUA (No division)
-  for(let i=1; i<=4; i++) {
+  const tugasKetua = [
+    'Koordinasi dengan Pihak Rektorat',
+    'Menyetujui Proposal Sponsor',
+    'Evaluasi Kinerja Panitia',
+    'Menyusun Laporan Akhir'
+  ];
+
+  for(let i=0; i<4; i++) {
     await prisma.task.create({
       data: {
-        judul_tugas: `Tugas Utama Ketua ${i}`,
+        judul_tugas: tugasKetua[i],
         deadline: new Date(now.getTime() + 86400000 * 3),
-        status_tugas: i < 3 ? 'DONE' : 'IN_PROGRESS',
+        status_tugas: i < 2 ? 'DONE' : 'IN_PROGRESS',
         event_id: event1.event_id,
         divisi_id: null,
         assignee_id: createdUsers['ketua1@demo.com'].user_id,
@@ -271,31 +293,55 @@ async function main() {
     }
   }
 
-  // 9. Pesan Chat (Massive data in Acara and Pubdekdok)
+  // 9. Pesan Chat (Massive data in all divisions)
+  const longAnnouncement = `PENGUMUMAN PENTING UNTUK SELURUH PANITIA! 📢\n\nTolong diperhatikan untuk evaluasi hari ini:\n1. Kedisiplinan: Banyak anggota yang terlambat saat sesi pleno kemarin. Mohon kedisiplinannya dijaga karena ini mencerminkan profesionalitas kita.\n2. Laporan Progres: Semua divisi WAJIB mengupdate status tugas di sistem sebelum jam 9 malam setiap harinya. Ketua divisi tolong pantau anggotanya.\n3. Kendala Lapangan: Jika ada kendala dengan vendor atau perlengkapan, segera laporkan ke grup Pengurus Inti, jangan ditunda sampai hari H.\n\nMari kita jaga semangat dan kerja keras kita. Acara kita tinggal menghitung hari! Tetap solid! 🔥`;
+
+  const chatDivisions = [
+    { div_id: divisiData[0].divisi_id, name: 'Acara', sender: (i) => i === 18 ? createdUsers['ketua1@demo.com'].user_id : createdUsers[i%2===0 ? 'koordinator1@demo.com' : `anggota${(i%5)+1}@demo.com`].user_id, msg: (i) => i === 18 ? `Halo Divisi Acara! Berikut adalah revisi final RUNDOWN HARI H yang harus dipatuhi:\n\n1. 06:00 - 07:00: Open Gate & Registrasi. Pastikan MC sudah standby di backstage jam 06:30.\n2. 07:00 - 07:15: Opening Dance oleh UKM Tari. Sound check terakhir harus selesai sebelum ini.\n3. 07:15 - 08:00: Sambutan-sambutan (Ketua Panitia, BEM, Rektor). Siapkan map sambutan dan mic wireless di podium.\n4. 08:00 - 10:00: Sesi Pemateri 1. Tolong operator slide perhatikan transisi PPT-nya jangan sampai delay.\n5. 10:00 - 10:30: Coffee Break & Ice Breaking. MC tolong bawa suasana agar audiens tidak ngantuk.\n\nTolong dipelajari baik-baik ya, jangan sampai ada miss komunikasi dengan divisi lain. Semangat terus komunikasinya, kalian ujung tombak jalannya event! 🔥` : `Koordinasi rundown acara hari ke-${i} tolong dicek lagi ya guys.` },
+    { div_id: divisiData[1].divisi_id, name: 'Humas', sender: (i) => i === 18 ? createdUsers['ketua1@demo.com'].user_id : createdUsers[i%2===0 ? 'koordinator2@demo.com' : `anggota${(i%3)+6}@demo.com`].user_id, msg: (i) => i === 18 ? `Tim Humas luar biasa! Ada pengumuman penting terkait penanganan Tamu VIP:\n\n1. Saat Rektor dan Jajaran Dekanat tiba, mohon 4 orang LO standby di lobi utama lengkap dengan kalung ID Card VIP.\n2. Jalur masuk VIP dipisah melalui pintu timur agar tidak berdesakan dengan peserta reguler.\n3. Tolong pastikan konfirmasi kehadiran 5 pembicara hari ini juga. Jika ada yang berhalangan, segera koordinasi dengan Divisi Acara untuk penyesuaian rundown.\n4. Update status perizinan dari Polsek setempat harus sudah saya terima laporannya sore ini jam 15:00 WIB.\n\nKita pastikan semua undangan tersampaikan dan terlayani dengan baik. Tetap ramah dan profesional ya!` : `Follow up surat undangan VIP batch ${i} sudah dikirim ya.` },
+    { div_id: divisiData[2].divisi_id, name: 'Pubdekdok', sender: (i) => i === 18 ? createdUsers['ketua1@demo.com'].user_id : createdUsers[i%2===0 ? 'koordinator3@demo.com' : `anggota${(i%8)+9}@demo.com`].user_id, msg: (i) => i === 18 ? `Pubdekdok keren! Untuk dokumentasi hari H, ini instruksi spesifik dari saya:\n\n1. Plotting Kamera: 1 Kamera statis di tengah untuk rekam full durasi, 2 Kamera roamer (kiri-kanan) untuk candid dan reaksi audiens.\n2. Lensa tele tolong dimaksimalkan saat sesi sambutan VIP agar wajah tokoh terlihat jelas tanpa noise.\n3. Live Streaming YouTube WAJIB menggunakan koneksi LAN (kabel), jangan pakai WiFi gedung karena rentan putus. Jika butuh kabel panjang, tagih ke bendahara hari ini.\n4. Tim Sosmed (IG/Tiktok) harus upload reels "Sneak Peek" suasana venue maksimal jam 08:00 pagi.\n\nTolong pastikan tim lapangan siap sedia. Baterai dan memory card tolong dikosongkan dan di-charge penuh dari malam! Semangat!` : `Update progres publikasi ke-${i}, cek link GDrive ya teman-teman.` },
+    { div_id: divisiData[3].divisi_id, name: 'Konsumsi', sender: (i) => i === 18 ? createdUsers['ketua1@demo.com'].user_id : createdUsers[i%2===0 ? 'koordinator4@demo.com' : `anggota${(i%3)+17}@demo.com`].user_id, msg: (i) => i === 18 ? `Tim Konsumsi! Ini briefing logistik makanan untuk Hari H:\n\n1. Distribusi Makan Panitia: Nasi kotak untuk panitia diambil secara bergiliran (shift) di Ruang Transit 2. Dilarang keras panitia makan di area venue yang terlihat oleh peserta.\n2. Snack VIP: Harus disajikan menggunakan piring keramik, bukan kardus. Teh dan Kopi hangat harus ready di ruang tunggu VIP jam 06:45.\n3. Sampah: Mohon siapkan trash bag besar di setiap titik konsumsi. Jangan sampai acara selesai meninggalkan lautan sampah kardus makanan.\n4. Vendor Catering: Tolong di-follow up lagi agar pengiriman nasi box peserta (500 pax) tidak lebih dari jam 11:30 siang. \n\nMohon pastikan logistik makanan aman dan tepat waktu ya, jangan sampai ada panitia atau peserta yang kelaparan. Semangat!!` : `Pesanan snack kotak ke-${i} sudah dikonfirmasi ke vendor ya.` },
+    { div_id: divisiData[4].divisi_id, name: 'Perlengkapan', sender: (i) => i === 18 ? createdUsers['ketua1@demo.com'].user_id : createdUsers[i%2===0 ? 'koordinator5@demo.com' : `anggota${(i%3)+20}@demo.com`].user_id, msg: (i) => i === 18 ? `Divisi Perlengkapan mantap! Berikut ceklis loading in malam ini:\n\n1. Sound System: Line array, mixer, dan 6 mic wireless (4 handheld, 2 clip-on) masuk jam 21:00 WIB. Langsung tes suara malam ini juga.\n2. Tenda & Kursi: Pemasangan tenda di area registrasi luar harus beres jam 23:00. Pastikan kursi VIP (sofa) dibersihkan.\n3. HT (Handy Talky): 30 unit HT harus sudah di-charge penuh. Besok pagi jam 05:30 langsung dibagikan ke seluruh koordinator dan keamanan.\n4. Kelistrikan: Cek jalur genset cadangan. Jangan sampai ada kabel melintang di jalan utama peserta yang bisa bikin tersandung.\n\nList barang tolong di cross-check ulang ya besok. Kalian tulang punggung fisik event ini 💪` : `Tenda dan kursi batch ${i} sudah siap dipasang besok pagi.` },
+    { div_id: divisiData[5].divisi_id, name: 'Keamanan', sender: (i) => i === 18 ? createdUsers['ketua1@demo.com'].user_id : createdUsers[i%2===0 ? 'koordinator6@demo.com' : `anggota${(i%3)+23}@demo.com`].user_id, msg: (i) => i === 18 ? `Halo Keamanan! Perhatian untuk pengamanan Hari H:\n\n1. Flow Massa: Pintu masuk peserta hanya dari Gerbang Utara. Gerbang Selatan dikhususkan untuk VIP dan Panitia. Jaga ketat pergantian jalurnya.\n2. Sterilisasi: Ruang transit VIP, backstage, dan ruang operator harus steril dari pihak yang tidak memiliki ID Card ber-hologram khusus.\n3. Parkir: Arahkan motor mahasiswa ke kantong parkir B, jangan biarkan ada yang parkir liar di depan auditorium.\n4. P3K: Standby 2 orang di dekat area kerumunan dengan kotak P3K dan tandu darurat untuk antisipasi ada yang pingsan.\n\nPastikan SOP sudah jelas ya. Jaga kesehatan, tugas kalian sangat vital untuk kenyamanan semua pihak.` : `Update area parkir zona ${i} sudah steril.` },
+  ];
+
+  // Buat Divisi Chat Ekstra (Umum, Pengurus Inti, Klien, Vendor, dll)
+  const ekstraDivs = ['Umum', 'Pengurus Inti', 'Klien', 'Vendor - Sound System', 'Vendor - Catering', 'Koordinasi Utama', 'Koordinator & Inti'];
+  const divMap = {};
+  for (const divName of ekstraDivs) {
+    let div = await prisma.divisi.findFirst({ where: { nama_divisi: divName, event_id: event1.event_id } });
+    if (!div) div = await prisma.divisi.create({ data: { nama_divisi: divName, event_id: event1.event_id } });
+    divMap[divName] = div;
+  }
+
+  // Tambahkan ke chatDivisions untuk generate dummy data
+  chatDivisions.push({ div_id: divMap['Umum'].divisi_id, name: 'Umum', sender: (i) => i === 15 ? createdUsers['ketua1@demo.com'].user_id : createdUsers[`anggota${(i%10)+1}@demo.com`].user_id, msg: (i) => i === 15 ? longAnnouncement : `Halo semuanya, jangan lupa isi daftar hadir harian ya teman-teman! Semangat!` });
+  chatDivisions.push({ div_id: divMap['Pengurus Inti'].divisi_id, name: 'Pengurus Inti', sender: (i) => i%2===0 ? createdUsers['ketua1@demo.com'].user_id : createdUsers['koordinator1@demo.com'].user_id, msg: (i) => i%2===0 ? `Evaluasi internal ke-${i}: pastikan laporan pertanggungjawaban divisi segera dikumpulkan minggu depan.` : `Siap ketua, saya akan info ke koor lainnya.` });
+  chatDivisions.push({ div_id: divMap['Klien'].divisi_id, name: 'Klien', sender: (i) => i%2===0 ? createdUsers['ketua1@demo.com'].user_id : createdUsers['klien1@demo.com'].user_id, msg: (i) => i%2===0 ? `Selamat siang Bapak/Ibu, berikut draft proposal revisi ke-${i}. Mohon dicek ya pak.` : `Baik, saya sudah terima draft-nya. Tolong perhatikan detail rundown-nya agar tidak bentrok dengan jadwal sambutan saya.` });
+  chatDivisions.push({ div_id: divMap['Vendor - Sound System'].divisi_id, name: 'Vendor Sound', sender: (i) => i%2===0 ? createdUsers['vendor1@demo.com'].user_id : createdUsers['koordinator5@demo.com'].user_id, msg: (i) => i%2===0 ? `Mohon izin melaporkan, instalasi line array batch ${i} sudah selesai dan dituning. Silakan panitia cek suaranya.` : `Siap mas, tolong pastikan mic wireless untuk MC aman dan tidak putus-putus ya, soalnya audiens kita penuh di GSP.` });
+  chatDivisions.push({ div_id: divMap['Vendor - Catering'].divisi_id, name: 'Vendor Catering', sender: (i) => i%2===0 ? createdUsers['vendor3@demo.com'].user_id : createdUsers['koordinator4@demo.com'].user_id, msg: (i) => i%2===0 ? `Paket snack dan VIP meal batch ${i} sudah kami siapkan untuk diangkut jam 6 pagi.` : `Oke, tolong dipastikan lauk untuk tamu VVIP menggunakan kotak terpisah yang lebih eksklusif ya pak.` });
+  chatDivisions.push({ div_id: divMap['Koordinasi Utama'].divisi_id, name: 'Koordinasi Utama', sender: (i) => { if(i%3===0) return createdUsers['ketua1@demo.com'].user_id; if(i%3===1) return createdUsers['klien1@demo.com'].user_id; return createdUsers['vendor1@demo.com'].user_id; }, msg: (i) => { if(i%3===0) return `Mohon perhatian dari seluruh pihak vendor dan klien, teknikal meeting ke-${i} akan dimulai jam 1 siang ini via zoom.`; if(i%3===1) return `Baik, saya selaku sponsor akan hadir. Tolong disiapkan bahan materinya.`; return `Siap pak ketua, dari vendor sound system akan hadir 2 orang tim teknis.`; } });
+  chatDivisions.push({ div_id: divMap['Koordinator & Inti'].divisi_id, name: 'Koor & Inti', sender: (i) => i%2===0 ? createdUsers['ketua1@demo.com'].user_id : createdUsers['koordinator1@demo.com'].user_id, msg: (i) => i%2===0 ? `Para koordinator divisi, tolong kumpulkan progres harian ke-${i} ke sekretaris sore ini.` : `Dari divisi acara sudah siap pak, tinggal menunggu fiksasi dari pihak rektorat.` });
+
   for(let i=1; i<=20; i++) {
-    // Chat in Pubdekdok
-    await prisma.pesanChat.create({
-      data: {
-        divisi_id: divisiData[2].divisi_id, // Pubdekdok
-        pengirim_id: createdUsers[`anggota${8 + (i%8)}@demo.com`].user_id,
-        isi_pesan: `Update progres publikasi ke-${i}, cek link GDrive ya teman-teman.`,
-        dikirim_pada: new Date(now.getTime() - (20-i)*3600000)
-      }
-    });
-    // Chat in Acara
-    await prisma.pesanChat.create({
-      data: {
-        divisi_id: divisiData[0].divisi_id, // Acara
-        pengirim_id: createdUsers[i%2===0 ? 'koordinator1@demo.com' : `anggota${(i%5)+1}@demo.com`].user_id,
-        isi_pesan: `Koordinasi rundown acara hari ke-${i} tolong dicek lagi ya guys.`,
-        dikirim_pada: new Date(now.getTime() - (20-i)*3600000)
-      }
-    });
+    for (const chatConf of chatDivisions) {
+      await prisma.pesanChat.create({
+        data: {
+          divisi_id: chatConf.div_id,
+          pengirim_id: chatConf.sender(i),
+          isi_pesan: chatConf.msg(i),
+          dikirim_pada: new Date(now.getTime() - (20-i)*3600000)
+        }
+      });
+    }
   }
 
   // 10. Pengumuman
   await prisma.pengumuman.create({
     data: { judul: 'Perubahan Jadwal Gladi', isi: 'Gladi dimajukan 1 jam.', event_id: event1.event_id, dibuat_oleh: createdUsers['ketua1@demo.com'].user_id, tanggal_waktu: new Date(), tempat: 'Auditorium' }
+  });
+  await prisma.pengumuman.create({
+    data: { judul: 'Pengumuman Penting Panitia Terkait Hari H', isi: longAnnouncement, event_id: event1.event_id, dibuat_oleh: createdUsers['ketua1@demo.com'].user_id }
   });
   await prisma.pengumuman.create({
     data: { judul: 'Pengumpulan SPJ', isi: 'Semua divisi harap kumpulkan nota SPJ maksimal H+3.', event_id: event1.event_id, divisi_id: divisiData[3].divisi_id, dibuat_oleh: createdUsers['ketua1@demo.com'].user_id }

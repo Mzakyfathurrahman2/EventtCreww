@@ -11,6 +11,7 @@ const dashboardController = {
   getDashboardData: async (req, res, next) => {
     try {
       const { id: event_id } = req.params;
+      const { prioritas } = req.query;
 
       // Verifikasi event ada
       const event = await prisma.event.findUnique({
@@ -32,6 +33,7 @@ const dashboardController = {
           divisi_id: true,
           nama_divisi: true,
           tasks: {
+            where: prioritas ? { prioritas } : {},
             select: { status_tugas: true }
           },
           keanggotaan: {
@@ -84,6 +86,8 @@ const dashboardController = {
       });
 
       const taskWhere = { event_id };
+      if (prioritas) taskWhere.prioritas = prioritas;
+      
       if (isVendor) {
         const vendorDivIds = filteredDivisiData.map(d => d.divisi_id);
         taskWhere.divisi_id = { in: vendorDivIds };
@@ -91,6 +95,7 @@ const dashboardController = {
         const excludedDivisiIds = divisiData
           .filter(div => isPrivateLeadershipRoom(div.nama_divisi))
           .map(d => d.divisi_id);
+        
         if (excludedDivisiIds.length > 0) {
           taskWhere.OR = [
             { divisi_id: null },
@@ -120,6 +125,7 @@ const dashboardController = {
         const excludedDivisiIds = divisiData
           .filter(div => isPrivateLeadershipRoom(div.nama_divisi))
           .map(d => d.divisi_id);
+          
         if (excludedDivisiIds.length > 0) {
           overdueSubTasksWhere.task.OR = [
             { divisi_id: null },
@@ -138,6 +144,7 @@ const dashboardController = {
         status_tugas: { notIn: ['DONE', 'TERLAMBAT'] },
         deadline: { gt: new Date() }
       };
+      if (prioritas) upcomingWhere.prioritas = prioritas;
 
       if (isVendor) {
         const vendorDivIds = filteredDivisiData.map(d => d.divisi_id);

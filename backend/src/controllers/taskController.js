@@ -483,6 +483,34 @@ const taskController = {
         data: { status: newStatus }
       });
 
+      // -- AUTO UPDATE PARENT TASK STATUS --
+      const allSubTasks = await prisma.subTask.findMany({
+        where: { task_id: subtask.task_id }
+      });
+      const allDone = allSubTasks.every(s => s.status === 'DONE');
+      const anyInProgress = allSubTasks.some(s => s.status === 'IN_PROGRESS' || s.status === 'DONE');
+      
+      const parentTask = await prisma.task.findUnique({
+        where: { task_id: subtask.task_id },
+        select: { status_tugas: true }
+      });
+
+      let newParentStatus = parentTask.status_tugas;
+      if (allDone && allSubTasks.length > 0) {
+        newParentStatus = 'DONE';
+      } else if (anyInProgress && parentTask.status_tugas === 'TODO') {
+        newParentStatus = 'IN_PROGRESS';
+      } else if (!allDone && parentTask.status_tugas === 'DONE') {
+        newParentStatus = 'IN_PROGRESS';
+      }
+
+      if (newParentStatus !== parentTask.status_tugas) {
+        await prisma.task.update({
+          where: { task_id: subtask.task_id },
+          data: { status_tugas: newParentStatus }
+        });
+      }
+
       res.json({ message: 'Status sub-tugas berhasil diperbarui', data: updated });
     } catch (error) {
       console.error('[updateSubTaskStatus]', error);

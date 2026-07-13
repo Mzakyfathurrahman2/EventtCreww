@@ -1,11 +1,11 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { taskApi } from '../api/taskApi';
 import { usePolling } from '../hooks/usePolling';
 import { AuthContext } from '../context/AuthContext';
 import {
   Loader2, AlertCircle, Calendar, CheckCircle2,
-  UserX, TrendingUp, Clock, Zap, BarChart2, PieChart
+  UserX, TrendingUp, Clock, Zap, BarChart2, PieChart, Filter
 } from 'lucide-react';
 
 // ── Priority Badge ────────────────────────────────────────────────────────────
@@ -24,44 +24,15 @@ const PrioritasBadge = ({ prioritas }) => {
 
 // ── Summary Card ──────────────────────────────────────────────────────────────
 const SummaryCard = ({ icon: Icon, label, value, iconBg, iconColor }) => (
-  <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
-    <div className={`p-3 rounded-xl shrink-0 ${iconBg}`}>
+  <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_25px_-5px_rgba(0,0,0,0.1)] transition-all flex items-center gap-4 relative overflow-hidden group">
+    <div className={`p-3 rounded-xl shrink-0 ${iconBg} transition-transform duration-300 group-hover:scale-110 relative z-10`}>
       <Icon className={`w-6 h-6 ${iconColor}`} />
     </div>
-    <div>
+    <div className="relative z-10">
       <p className="text-sm text-slate-500 font-medium">{label}</p>
       <p className="text-2xl font-bold text-slate-900">{value}</p>
     </div>
-  </div>
-);
-
-// ── Divisi Progress Bar ───────────────────────────────────────────────────────
-const DivisiProgressItem = ({ div, showAnggota }) => (
-  <div className="mb-5 last:mb-0">
-    <div className="flex justify-between text-sm mb-1">
-      <span className="font-medium text-slate-700">{div.nama_divisi}</span>
-      <div className="flex items-center gap-2">
-        {div.terlambat > 0 && showAnggota && (
-          <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-            {div.terlambat} terlambat
-          </span>
-        )}
-        <span className="text-slate-500">{div.progress}%{showAnggota ? ` (${div.done}/${div.total})` : ''}</span>
-      </div>
-    </div>
-    <div className="w-full bg-slate-100 rounded-full h-2.5">
-      <div
-        className={`h-2.5 rounded-full transition-all duration-1000 ${
-          div.progress === 100 ? 'bg-green-500' :
-          div.terlambat > 0 ? 'bg-red-500' :
-          'bg-indigo-600'
-        }`}
-        style={{ width: `${div.progress}%` }}
-      />
-    </div>
-    {showAnggota && (
-      <p className="text-xs text-slate-400 mt-1">{div.anggota} anggota aktif</p>
-    )}
+    <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full ${iconBg} blur-2xl opacity-40 group-hover:opacity-60 transition-opacity`} />
   </div>
 );
 
@@ -143,7 +114,9 @@ const CustomDonutChart = ({ summary = {} }) => {
               strokeDashoffset={seg.offset}
               strokeLinecap="round"
               className="transition-all duration-700 ease-out hover:stroke-[5.5] cursor-pointer"
-            />
+            >
+              <title>{seg.label}: {seg.value} tugas ({seg.percent.toFixed(1)}%)</title>
+            </circle>
           ))}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -170,276 +143,119 @@ const CustomDonutChart = ({ summary = {} }) => {
   );
 };
 
-// ── Custom Bar Chart (Jumlah Tugas per Divisi) ───────────────────────────────
-const CustomBarChart = ({ data = [] }) => {
-  if (data.length === 0) return <p className="text-sm text-slate-400 text-center py-10 h-[180px] flex items-center justify-center">Belum ada data tugas divisi.</p>;
+// ── Divisi Leaderboard (Peringkat Kinerja Divisi) ──────────────────────────────
+const DivisiLeaderboard = ({ data = [] }) => {
+  const [sortBy, setSortBy] = useState('most_done'); // most_done, least_done, most_overdue
 
-  const width = 500;
-  const height = 180;
-  const paddingX = 40;
-  const paddingY = 20;
+  if (data.length === 0) return <p className="text-sm text-slate-400 text-center py-10">Belum ada data tugas divisi.</p>;
 
-  const chartWidth = width - paddingX * 2;
-  const chartHeight = height - paddingY * 2;
-
-  const maxVal = Math.max(...data.map(d => d.total), 5);
-
-  const barWidth = Math.min(30, (chartWidth / data.length) * 0.5);
-  const gap = data.length > 1 ? (chartWidth - (barWidth * data.length)) / (data.length - 1) : chartWidth;
-
-  const getX = (idx) => paddingX + idx * (barWidth + gap);
-  const getY = (val) => paddingY + chartHeight - (val / maxVal) * chartHeight;
-
-  return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[300px] overflow-visible">
-        {[0, Math.round(maxVal / 2), maxVal].map((val, idx) => {
-          const y = getY(val);
-          return (
-            <g key={idx} className="opacity-10">
-              <line x1={paddingX} y1={y} x2={width - paddingX} y2={y} stroke="#000" strokeWidth="1" />
-              <text x={paddingX - 10} y={y + 4} textAnchor="end" className="text-[10px] font-bold fill-slate-700">{val}</text>
-            </g>
-          );
-        })}
-
-        {data.map((d, idx) => {
-          const x = getX(idx);
-          const y = getY(d.total);
-          const barHeight = chartHeight - (y - paddingY);
-
-          return (
-            <g key={idx} className="group cursor-pointer">
-              <rect
-                x={x} y={y}
-                width={barWidth} height={Math.max(barHeight, 2)}
-                rx="4"
-                fill="#4f46e5"
-                className="transition-all duration-300 hover:fill-indigo-500 opacity-90 hover:opacity-100"
-              />
-              <text
-                x={x + barWidth / 2} y={y - 5}
-                textAnchor="middle"
-                className="text-[9px] font-bold fill-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-              >
-                {d.total}
-              </text>
-              <text
-                x={x + barWidth / 2} y={height - 2}
-                textAnchor="middle"
-                className="text-[9px] font-medium fill-slate-400"
-              >
-                {d.nama_divisi}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-};
-
-// ── Custom Grouped Bar Chart (Selesai vs Sedang Dikerjakan per Divisi) ────────
-const CustomGroupedBarChart = ({ data = [] }) => {
-  if (data.length === 0) return <p className="text-sm text-slate-400 text-center py-10 h-[180px] flex items-center justify-center">Belum ada data tugas divisi.</p>;
-
-  const width = 500;
-  const height = 180;
-  const paddingX = 40;
-  const paddingY = 20;
-
-  const chartWidth = width - paddingX * 2;
-  const chartHeight = height - paddingY * 2;
-
-  // Max value calculation
-  const maxVal = Math.max(...data.map(d => Math.max(d.done, d.inProgress)), 5);
-
-  const groupWidth = Math.min(60, chartWidth / data.length);
-  const barWidth = groupWidth * 0.35;
-  const gap = data.length > 1 ? (chartWidth - (groupWidth * data.length)) / (data.length - 1) : chartWidth;
-
-  const getX = (idx) => paddingX + idx * (groupWidth + gap);
-  const getY = (val) => paddingY + chartHeight - (val / maxVal) * chartHeight;
-
-  return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[300px] overflow-visible">
-        {/* Horizontal grid lines */}
-        {[0, Math.round(maxVal / 2), maxVal].map((val, idx) => {
-          const y = getY(val);
-          return (
-            <g key={idx} className="opacity-10">
-              <line x1={paddingX} y1={y} x2={width - paddingX} y2={y} stroke="#000" strokeWidth="1" />
-              <text x={paddingX - 10} y={y + 4} textAnchor="end" className="text-[10px] font-bold fill-slate-700">{val}</text>
-            </g>
-          );
-        })}
-
-        {/* Grouped Bars */}
-        {data.map((d, idx) => {
-          const groupX = getX(idx);
-          const xDone = groupX + groupWidth * 0.1;
-          const xProgress = groupX + groupWidth * 0.15 + barWidth;
-
-          const yDone = getY(d.done);
-          const yProgress = getY(d.inProgress);
-
-          const hDone = chartHeight - (yDone - paddingY);
-          const hProgress = chartHeight - (yProgress - paddingY);
-
-          return (
-            <g key={idx} className="group cursor-pointer">
-              {/* Green Done Bar */}
-              <rect
-                x={xDone} y={yDone}
-                width={barWidth} height={Math.max(hDone, 2)}
-                rx="3"
-                fill="#22c55e"
-                className="transition-all duration-300 opacity-90 hover:opacity-100"
-              />
-              <text
-                x={xDone + barWidth / 2} y={yDone - 5}
-                textAnchor="middle"
-                className="text-[8px] font-bold fill-green-700 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                {d.done}
-              </text>
-
-              {/* Blue In Progress Bar */}
-              <rect
-                x={xProgress} y={yProgress}
-                width={barWidth} height={Math.max(hProgress, 2)}
-                rx="3"
-                fill="#3b82f6"
-                className="transition-all duration-300 opacity-90 hover:opacity-100"
-              />
-              <text
-                x={xProgress + barWidth / 2} y={yProgress - 5}
-                textAnchor="middle"
-                className="text-[8px] font-bold fill-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                {d.inProgress}
-              </text>
-
-              {/* X Axis Label */}
-              <text
-                x={groupX + groupWidth / 2} y={height - 2}
-                textAnchor="middle"
-                className="text-[9px] font-medium fill-slate-400"
-              >
-                {d.nama_divisi}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-};
-
-// ── Custom Line Chart (Progres Penyelesaian per Divisi) ────────────────────────
-const CustomLineChart = ({ data = [] }) => {
-  if (data.length === 0) return <p className="text-sm text-slate-400 text-center py-10 h-[180px] flex items-center justify-center">Belum ada data progres divisi.</p>;
-
-  const width = 500;
-  const height = 180;
-  const paddingX = 40;
-  const paddingY = 20;
-
-  const chartWidth = width - paddingX * 2;
-  const chartHeight = height - paddingY * 2;
-
-  const getX = (idx) => paddingX + (idx * (data.length > 1 ? chartWidth / (data.length - 1) : chartWidth));
-  const getY = (val) => paddingY + chartHeight - (val / 100) * chartHeight;
-
-  let pathD = '';
-  data.forEach((d, idx) => {
-    const x = getX(idx);
-    const y = getY(d.progress);
-    if (idx === 0) {
-      pathD = `M ${x} ${y}`;
-    } else {
-      pathD += ` L ${x} ${y}`;
-    }
+  const sortedData = [...data].sort((a, b) => {
+    if (sortBy === 'most_done') return b.done - a.done;
+    if (sortBy === 'least_done') return a.done - b.done;
+    if (sortBy === 'most_overdue') return b.terlambat - a.terlambat;
+    return 0;
   });
 
-  let areaD = '';
-  if (data.length > 0) {
-    areaD = `${pathD} L ${getX(data.length - 1)} ${paddingY + chartHeight} L ${getX(0)} ${paddingY + chartHeight} Z`;
-  }
-
   return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[300px] overflow-visible">
-        <defs>
-          <linearGradient id="lineChartGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.2"/>
-            <stop offset="100%" stopColor="#4f46e5" stopOpacity="0"/>
-          </linearGradient>
-        </defs>
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col gap-2 mb-3">
+        <select
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-500 text-slate-600 bg-slate-50 w-full"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+        >
+          <option value="most_done">Urutkan: Paling Banyak Selesai</option>
+          <option value="least_done">Urutkan: Paling Sedikit Selesai</option>
+          <option value="most_overdue">Urutkan: Paling Banyak Terlambat</option>
+        </select>
+        <div className="flex gap-3 text-[9px] font-semibold text-slate-500 justify-end">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500"></span>Selesai</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span>Progres</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span>Terlambat</span>
+        </div>
+      </div>
 
-        {[0, 50, 100].map((grid, idx) => {
-          const y = getY(grid);
-          return (
-            <g key={idx} className="opacity-10">
-              <line x1={paddingX} y1={y} x2={width - paddingX} y2={y} stroke="#000" strokeWidth="1" strokeDasharray="3 3" />
-              <text x={paddingX - 10} y={y + 4} textAnchor="end" className="text-[10px] font-bold fill-slate-700">{grid}%</text>
-            </g>
-          );
-        })}
-
-        {data.length > 1 && <path d={areaD} fill="url(#lineChartGrad)" />}
-
-        {data.length > 1 && (
-          <path
-            d={pathD}
-            fill="none"
-            stroke="#4f46e5"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="drop-shadow-[0_2px_4px_rgba(79,70,229,0.2)]"
-          />
-        )}
-
-        {data.map((d, idx) => {
-          const x = getX(idx);
-          const y = getY(d.progress);
-          return (
-            <g key={idx} className="group cursor-pointer">
-              <circle
-                cx={x} cy={y} r="4"
-                fill="#4f46e5"
-                stroke="#fff"
-                strokeWidth="2"
-                className="transition-all duration-300 group-hover:r-6"
-              />
-              <rect
-                x={x - 40} y={y - 30} width="80" height="20" rx="5"
-                fill="#1e293b"
-                className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg"
-              />
-              <text
-                x={x} y={y - 17}
-                textAnchor="middle"
-                className="text-[9px] font-bold fill-white opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200"
-              >
-                {d.progress}%
-              </text>
-              <text
-                x={x} y={height - 2}
-                textAnchor="middle"
-                className="text-[9px] font-medium fill-slate-400"
-              >
-                {d.nama_divisi}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+      <div className="space-y-3 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+        {sortedData.map((d, idx) => (
+          <div key={d.divisi_id || idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 hover:border-indigo-200 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                idx === 0 && sortBy === 'most_done' ? 'bg-amber-100 text-amber-700' :
+                idx === 1 && sortBy === 'most_done' ? 'bg-slate-200 text-slate-700' :
+                idx === 2 && sortBy === 'most_done' ? 'bg-orange-100 text-orange-800' :
+                'bg-white text-slate-500 border border-slate-200'
+              }`}>
+                {idx + 1}
+              </span>
+              <div>
+                <p className="font-bold text-slate-800 text-xs truncate max-w-[120px]">{d.nama_divisi}</p>
+                <p className="text-[10px] text-slate-500">{d.progress}% Berhasil</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-right shrink-0">
+              <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center gap-1" title="Tugas Selesai">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>{d.done}
+              </span>
+              <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex items-center gap-1" title="Sedang Dikerjakan">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>{d.inProgress}
+              </span>
+              <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded flex items-center gap-1" title="Terlambat">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>{d.terlambat}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
+
+
+// ── Horizontal HTML Bar Chart (Kinerja per Divisi) ──────────────────────────
+const DivisiHorizontalBar = ({ div, showAnggota }) => (
+  <div className="mb-6 last:mb-0">
+    <div className="flex justify-between text-sm mb-1.5 items-end">
+      <div>
+        <span className="font-bold text-slate-700 block">{div.nama_divisi}</span>
+        {showAnggota && <span className="text-xs text-slate-400">{div.anggota} anggota aktif</span>}
+      </div>
+      <div className="text-right flex flex-col items-end">
+        <span className="font-bold text-slate-800">{div.progress}% Selesai</span>
+        <span className="text-xs text-slate-500 font-medium">
+          {div.done} dari {div.total} tugas
+        </span>
+      </div>
+    </div>
+    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden flex shadow-inner">
+      <div
+        className="bg-green-500 h-full transition-all duration-1000"
+        style={{ width: `${div.total > 0 ? (div.done/div.total)*100 : 0}%` }}
+        title={`Selesai: ${div.done}`}
+      />
+      <div
+        className="bg-blue-500 h-full transition-all duration-1000"
+        style={{ width: `${div.total > 0 ? (div.inProgress/div.total)*100 : 0}%` }}
+        title={`Sedang Dikerjakan: ${div.inProgress}`}
+      />
+      <div
+        className="bg-red-500 h-full transition-all duration-1000"
+        style={{ width: `${div.total > 0 ? (div.terlambat/div.total)*100 : 0}%` }}
+        title={`Terlambat: ${div.terlambat}`}
+      />
+    </div>
+    <div className="flex justify-between items-center mt-2">
+      <div className="text-[10px] text-slate-400 font-medium">
+        Total {div.total} Tugas
+      </div>
+      <div className="flex items-center gap-3 text-[10px] text-slate-500 font-medium">
+        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> {div.done} Selesai</div>
+        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> {div.inProgress} Diproses</div>
+        {div.terlambat > 0 && <div className="flex items-center gap-1 text-red-500"><span className="w-2 h-2 rounded-full bg-red-500" /> {div.terlambat} Terlambat</div>}
+      </div>
+    </div>
+  </div>
+);
 
 // ── Main Dashboard Component ──────────────────────────────────────────────────
 const DashboardEvent = () => {
@@ -448,14 +264,20 @@ const DashboardEvent = () => {
   const { user } = useContext(AuthContext);
   const userType = user?.user_type || 'PANITIA';
 
-  // Polling setiap 5 detik sesuai FR-007
-  const { data: dashboard, loading, error } = usePolling(taskApi.getDashboard, [id], 5000);
+  const [prioritasFilter, setPrioritasFilter] = useState('');
 
-  if (loading) {
+  // Polling setiap 5 detik sesuai FR-007, sekarang dengan prioritasFilter
+  const { data: dashboard, loading, error } = usePolling(
+    (eventId) => taskApi.getDashboard(eventId, { prioritas: prioritasFilter }), 
+    [id, prioritasFilter], 
+    5000
+  );
+
+  if (loading && !dashboard) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px] gap-3">
         <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-        <p className="text-sm text-slate-500">Memuat dashboard...</p>
+        <p className="text-sm text-slate-500">Memuat dashboard Sistem Informasi Manajemen...</p>
       </div>
     );
   }
@@ -474,24 +296,56 @@ const DashboardEvent = () => {
   return (
     <div className="space-y-6">
       {/* Dashboard Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-md">
         <div>
-          <h2 className="text-xl font-bold">{event?.nama_event || 'Dashboard Event'}</h2>
-          <div className="flex items-center gap-3 mt-2">
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-              event?.status_event === 'AKTIF' ? 'bg-green-400/30 text-green-100' :
+          <h2 className="text-2xl font-bold">{event?.nama_event || 'Dashboard Event'}</h2>
+          <p className="text-indigo-200 text-sm mt-1 mb-3">Sistem Informasi Manajemen Event</p>
+          
+          {event?.tanggal_pelaksanaan && (
+            <div className="flex items-center gap-2 mb-3 text-indigo-100 text-sm font-medium bg-black/10 w-fit px-3 py-1.5 rounded-lg border border-white/10 shadow-sm">
+              <Calendar className="w-4 h-4 text-indigo-300" />
+              Hari H: {new Date(event.tanggal_pelaksanaan).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+              event?.status_event === 'AKTIF' ? 'bg-green-400/30 text-green-100 border border-green-400/50' :
               event?.status_event === 'SELESAI' ? 'bg-white/20 text-white' :
               'bg-amber-400/30 text-amber-100'
             }`}>
               {event?.status_event}
             </span>
-            <span className="flex items-center gap-1 text-indigo-200 text-xs">
-              <Zap className="w-3 h-3" />
-              Auto-refresh setiap 5 detik
+            <span className="flex items-center gap-1.5 text-indigo-200 text-xs font-medium bg-black/10 px-3 py-1 rounded-full">
+              <Zap className="w-3 h-3 text-yellow-300" />
+              Auto-refresh: Aktif (5s)
             </span>
           </div>
         </div>
         {userType === 'PANITIA' && <CircularProgress percent={summary.overallProgress} />}
+      </div>
+
+      {/* Filter Prioritas untuk MIS */}
+      <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+          <Filter className="w-4 h-4 text-indigo-500" />
+          Filter Grafik:
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {['', 'HIGH', 'MEDIUM', 'LOW'].map(p => (
+            <button
+              key={p}
+              onClick={() => setPrioritasFilter(p)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                prioritasFilter === p 
+                ? 'bg-indigo-600 text-white shadow-md' 
+                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+              }`}
+            >
+              {p === '' ? 'SEMUA PRIORITAS' : p}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -499,28 +353,28 @@ const DashboardEvent = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard
             icon={AlertCircle}
-            label="Terlambat"
+            label={`Terlambat ${prioritasFilter ? '('+prioritasFilter+')' : ''}`}
             value={summary.terlambat}
             iconBg="bg-red-50"
             iconColor="text-red-500"
           />
           <SummaryCard
             icon={UserX}
-            label="Tidak Aktif"
+            label="Anggota Pasif"
             value={summary.tidakAktif}
             iconBg="bg-amber-50"
             iconColor="text-amber-500"
           />
           <SummaryCard
             icon={CheckCircle2}
-            label="Tugas Selesai"
+            label={`Tugas Selesai ${prioritasFilter ? '('+prioritasFilter+')' : ''}`}
             value={`${summary.tugasSelesai}/${summary.totalTugas}`}
             iconBg="bg-green-50"
             iconColor="text-green-500"
           />
           <SummaryCard
             icon={TrendingUp}
-            label="Total Divisi"
+            label="Total Divisi Aktif"
             value={summary.totalDivisi}
             iconBg="bg-indigo-50"
             iconColor="text-indigo-500"
@@ -528,126 +382,113 @@ const DashboardEvent = () => {
         </div>
       )}
 
-      {/* ── VISUALISASI GRAFIK & STATISTIK (2x2 Grid) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Pie/Donut Chart */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <PieChart className="w-4 h-4 text-indigo-500" />
-              Distribusi Status Tugas (Seluruh Event)
+      {/* ── VISUALISASI GRAFIK MIS ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Kolom Kiri: Charts (2 dari 3 kolom) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Horizontal Bar Chart (Kinerja per Divisi) - Menggantikan Line Chart & Bar Chart lama */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border-t-[3px] border-t-indigo-500 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 blur-3xl opacity-50 pointer-events-none" />
+            <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2 relative z-10">
+              <BarChart2 className="w-5 h-5 text-indigo-500" />
+              Kinerja & Progres per Divisi 
+              {prioritasFilter && <PrioritasBadge prioritas={prioritasFilter} />}
             </h3>
-            <CustomDonutChart summary={summary} />
+            <div className="relative z-10">
+              {divisiProgress.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-8">Belum ada divisi yang memenuhi kriteria.</p>
+              ) : (
+                divisiProgress.map((div, idx) => (
+                  <DivisiHorizontalBar 
+                    key={idx} 
+                    div={div} 
+                    showAnggota={userType === 'PANITIA'} 
+                  />
+                ))
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Grouped Bar Chart (Selesai vs Sedang Dikerjakan) */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-green-500" />
-              Tugas Selesai (🟢) vs Sedang Dikerjakan (🔵)
-            </h3>
-            <CustomGroupedBarChart data={divisiProgress} />
-          </div>
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Pie/Donut Chart */}
+            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+              <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <PieChart className="w-4 h-4 text-indigo-500" />
+                Distribusi Status Tugas
+              </h3>
+              <CustomDonutChart summary={summary} />
+            </div>
 
-        {/* Bar Chart (Total Tugas) */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-indigo-500" />
-              Jumlah Tugas per Divisi
-            </h3>
-            <CustomBarChart data={divisiProgress} />
-          </div>
-        </div>
-
-        {/* Line Chart (Progres) */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-indigo-500" />
-              Progres Proyek per Divisi (%)
-            </h3>
-            <CustomLineChart data={divisiProgress} />
-          </div>
-        </div>
-      </div>
-
-      {/* Main 2-column Grid */}
-      <div className={(userType === 'PANITIA' || userType === 'VENDOR') ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : "grid grid-cols-1 gap-6"}>
-        {/* Progress per Divisi */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          <h3 className="text-lg font-bold text-slate-900 mb-5 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-indigo-500" />
-            Detail Progres Divisi
-          </h3>
-          {divisiProgress.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">Belum ada divisi dalam event ini.</p>
-          ) : (
-            divisiProgress.map((div, idx) => (
-              <DivisiProgressItem 
-                key={idx} 
-                div={div} 
-                showAnggota={userType === 'PANITIA'} 
-              />
-            ))
-          )}
-        </div>
-
-        {/* Deadline Terdekat */}
-        {(userType === 'PANITIA' || userType === 'VENDOR') && (
-          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 mb-5 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-amber-500" />
-              Deadline Terdekat
-            </h3>
-            {upcomingDeadlines.length === 0 ? (
-              <div className="text-center py-8">
-                <CheckCircle2 className="w-10 h-10 text-green-200 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">Tidak ada deadline mendekat! 🎉</p>
+            {/* Divisi Leaderboard */}
+            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border-t-[3px] border-t-green-500 flex flex-col relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-green-50 blur-3xl opacity-50 pointer-events-none" />
+              <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2 shrink-0 relative z-10">
+                <BarChart2 className="w-4 h-4 text-green-500" />
+                Peringkat Kinerja Divisi
+              </h3>
+              <div className="relative z-10 h-full">
+                <DivisiLeaderboard data={divisiProgress} />
               </div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingDeadlines.map(task => {
-                  const daysLeft = Math.ceil((new Date(task.deadline) - new Date()) / (1000 * 60 * 60 * 24));
-                  const isUrgent = daysLeft <= 3;
-                  return (
-                    <div
-                      key={task.task_id}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer hover:shadow-sm transition group ${
-                        isUrgent ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'
-                      }`}
-                      onClick={() => navigate(`/tasks/${task.task_id}`)}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-900 text-sm truncate group-hover:text-indigo-700 transition">
-                          {task.judul_tugas}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-slate-400">{task.divisi?.nama_divisi}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Kolom Kanan: Deadline (1 dari 3 kolom) */}
+        <div className="lg:col-span-1 space-y-6">
+          {(userType === 'PANITIA' || userType === 'VENDOR') && (
+            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border-t-[3px] border-t-amber-500 h-full relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 blur-3xl opacity-50 pointer-events-none" />
+              <h3 className="text-lg font-bold text-slate-900 mb-5 flex items-center gap-2 relative z-10">
+                <Clock className="w-5 h-5 text-amber-500" />
+                Deadline Terdekat
+              </h3>
+              <div className="relative z-10">
+              {upcomingDeadlines.length === 0 ? (
+                <div className="text-center py-10">
+                  <CheckCircle2 className="w-12 h-12 text-green-200 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-slate-600">Semua aman terkendali! 🎉</p>
+                  <p className="text-xs text-slate-400 mt-1">Tidak ada tugas mendesak.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingDeadlines.map(task => {
+                    const daysLeft = Math.ceil((new Date(task.deadline) - new Date()) / (1000 * 60 * 60 * 24));
+                    const isUrgent = daysLeft <= 3;
+                    return (
+                      <div
+                        key={task.task_id}
+                        className={`flex flex-col p-3.5 rounded-xl border cursor-pointer hover:shadow-md transition group ${
+                          isUrgent ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'
+                        }`}
+                        onClick={() => navigate(`/tasks/${task.task_id}`)}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="font-bold text-slate-900 text-sm line-clamp-2 group-hover:text-indigo-700 transition">
+                            {task.judul_tugas}
+                          </p>
+                          <div className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md whitespace-nowrap ml-2 ${
+                            isUrgent ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            <Calendar className="w-3 h-3" />
+                            {daysLeft <= 0 ? 'Hari ini!' : `${daysLeft}h`}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-auto">
+                          <span className="text-xs font-medium text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
+                            {task.divisi?.nama_divisi}
+                          </span>
                           <PrioritasBadge prioritas={task.prioritas} />
                         </div>
                       </div>
-                      <div className="text-right shrink-0 ml-3">
-                        <div className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg ${
-                          isUrgent ? 'bg-red-100 text-red-700' : 'bg-amber-50 text-amber-700'
-                        }`}>
-                          <Calendar className="w-3 h-3" />
-                          {daysLeft <= 0 ? 'Hari ini!' : `${daysLeft}h`}
-                        </div>
-                        <p className="text-xs text-slate-400 mt-1">
-                          {new Date(task.deadline).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta',  day: 'numeric', month: 'short' })}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

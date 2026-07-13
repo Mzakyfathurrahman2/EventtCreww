@@ -74,10 +74,23 @@ const createPengumuman = async (req, res, next) => {
 
     await Promise.all(notifPromises);
 
+    const pengumumanResult = await prisma.pengumuman.findUnique({
+      where: { pengumuman_id: pengumuman.pengumuman_id },
+      include: {
+        pembuat: { select: { nama_lengkap: true } },
+        divisi: { select: { nama_divisi: true } }
+      }
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('new-pengumuman', { event_id, data: pengumumanResult });
+    }
+
     res.status(201).json({
       error: false,
       message: 'Pengumuman berhasil dibuat',
-      data: pengumuman
+      data: pengumumanResult
     });
   } catch (error) {
     console.error('[Create Pengumuman Error]', error);

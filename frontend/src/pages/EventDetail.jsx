@@ -546,22 +546,22 @@ const EventDetail = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between bg-white p-4 border-b border-slate-200 sticky top-0 z-20">
+      <div className="md:hidden flex items-center justify-between bg-white/80 backdrop-blur-xl px-4 py-3 border-b border-slate-100 shadow-sm sticky top-0 z-30">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/')} className="text-slate-500">
+          <button onClick={() => navigate('/')} className="text-slate-500 hover:text-indigo-600 transition-colors p-1 -ml-1">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h2 className="font-bold text-lg text-slate-900 truncate max-w-[200px]">{event.nama_event}</h2>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setIsSettingsOpen(true)} className="text-slate-500 hover:text-indigo-600 transition-colors p-1" title="Pengaturan Akun">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setIsSettingsOpen(true)} className="text-slate-500 hover:text-indigo-600 transition-colors p-1.5" title="Pengaturan Akun">
             <Settings className="w-5 h-5" />
           </button>
           <NotificationBell />
-          <button onClick={handleLogout} className="text-red-500 hover:text-red-600" title="Logout">
+          <button onClick={handleLogout} className="text-red-500 hover:text-red-600 p-1.5" title="Logout">
             <LogOut className="w-5 h-5" />
           </button>
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-700 p-2">
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-700 p-1.5 hover:bg-slate-100 rounded-lg ml-1">
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
@@ -569,26 +569,29 @@ const EventDetail = () => {
 
       {/* Sidebar Navigation */}
       <aside className={`
-        fixed md:static inset-y-0 left-0 z-10 w-64 bg-white border-r border-slate-200 
-        transform transition-transform duration-200 ease-in-out md:translate-x-0 flex flex-col p-4
+        fixed md:static inset-y-0 left-0 z-40 w-[280px] md:w-64 bg-gradient-to-b from-indigo-800 to-indigo-950 border-r border-indigo-900/50 
+        transform transition-transform duration-300 ease-out md:translate-x-0 flex flex-col p-5 md:p-4
+        shadow-[4px_0_24px_rgba(0,0,0,0.3)] md:shadow-none
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="hidden md:flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 mb-8 cursor-pointer" onClick={() => navigate('/')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
+        <div className="flex items-center text-sm font-medium text-indigo-200 hover:text-white mb-8 cursor-pointer group transition-colors" onClick={() => navigate('/')}>
+          <div className="p-1.5 rounded-lg bg-white/10 group-hover:bg-white/20 transition-colors mr-3 backdrop-blur-sm">
+            <ArrowLeft className="w-4 h-4 text-indigo-200 group-hover:text-white transition-colors" />
+          </div>
           Daftar Event
         </div>
 
-        <div className="mb-6 px-2 hidden md:block">
-          <h2 className="font-bold text-lg text-slate-900 line-clamp-2">{event.nama_event}</h2>
-          <div className="flex flex-col gap-1 mt-2">
-            <span className={`inline-block w-max px-2 py-1 text-[10px] font-bold rounded-full ${event.status_event === 'PERSIAPAN' ? 'bg-amber-100 text-amber-700' :
-                event.status_event === 'AKTIF' ? 'bg-green-100 text-green-700' :
-                  'bg-slate-100 text-slate-700'
+        <div className="mb-8">
+          <h2 className="font-bold text-lg md:text-xl text-white line-clamp-2 leading-tight">{event.nama_event}</h2>
+          <div className="flex flex-col gap-2 mt-4">
+            <span className={`inline-block w-max px-3 py-1 text-[10px] font-bold rounded-full border ${event.status_event === 'PERSIAPAN' ? 'bg-amber-400/20 text-amber-300 border-amber-400/30' :
+                event.status_event === 'AKTIF' ? 'bg-emerald-400/20 text-emerald-300 border-emerald-400/30' :
+                  'bg-white/10 text-indigo-200 border-white/20'
               }`}>
               EVENT: {event.status_event}
             </span>
             {user?.user_type === 'PANITIA' && (
-              <span className="inline-block w-max px-2 py-1 text-[10px] font-bold rounded-full bg-indigo-100 text-indigo-700">
+              <span className="inline-block w-max px-3 py-1 text-[10px] font-bold rounded-full bg-white/15 text-indigo-100 border border-white/20 backdrop-blur-sm">
                 ROLE: {event.userKeanggotaan?.role_event || 'ANGGOTA'}
               </span>
             )}
@@ -622,17 +625,17 @@ const EventDetail = () => {
                 else navigate(item.path);
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3 py-3 md:py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === item.id
-                  ? 'bg-indigo-50 text-indigo-700'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              className={`group w-full flex items-center justify-between px-3 py-3 md:py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${activeTab === item.id
+                  ? 'bg-white/20 text-white backdrop-blur-md shadow-[0_4px_15px_-3px_rgba(0,0,0,0.1)] border border-white/10'
+                  : 'text-indigo-200 hover:bg-white/10 hover:text-white'
                 }`}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <item.icon className={`w-5 h-5 shrink-0 ${activeTab === item.id ? 'text-indigo-600' : 'text-slate-400'}`} />
+                <item.icon className={`w-5 h-5 shrink-0 transition-colors duration-300 ${activeTab === item.id ? 'text-white' : 'text-indigo-300 group-hover:text-white'}`} />
                 <span className="truncate">{item.label}</span>
               </div>
               {unreadStatus[item.id] && (
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0 mr-1" />
+                <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse shrink-0 mr-1 shadow-[0_0_8px_rgba(251,113,133,0.5)]" />
               )}
             </button>
           ))}
@@ -642,7 +645,7 @@ const EventDetail = () => {
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/50 z-0 md:hidden"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 md:hidden transition-opacity"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

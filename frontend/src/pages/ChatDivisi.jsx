@@ -43,6 +43,13 @@ const ChatDivisi = () => {
   const [newRoomName, setNewRoomName] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [showSidebar, setShowSidebar] = useState(true);
+
+  // AI Summary States
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [aiSummary, setAiSummary] = useState('');
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState('');
 
   const messagesEndRef = useRef(null);
 
@@ -193,6 +200,22 @@ const ChatDivisi = () => {
     }
   };
 
+  // 8. AI Summary Handler
+  const handleAISummary = async (promptOverride = '') => {
+    setShowSummaryModal(true);
+    setLoadingSummary(true);
+    setAiSummary('');
+    try {
+      const res = await chatApi.getSummary(activeRoom.divisi_id, promptOverride);
+      setAiSummary(res.data.data || 'Tidak ada ringkasan.');
+    } catch (err) {
+      const errMsg = err.response?.data?.detail || err.response?.data?.message || err.message;
+      setAiSummary(`Terjadi kesalahan teknis:\n\n${errMsg}\n\nPastikan API Key sudah benar dan coba lagi.`);
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
+
   // Helper untuk menentukan icon room
   const getRoomIcon = (name) => {
     const lower = name.toLowerCase();
@@ -219,7 +242,7 @@ const ChatDivisi = () => {
       <div className="w-full max-w-6xl h-screen md:h-[90vh] bg-white rounded-none md:rounded-3xl shadow-2xl flex overflow-hidden border border-slate-200">
         
         {/* SIDEBAR SALURAN DISKUSI (Slack/Discord-like) */}
-        <aside className="w-64 bg-indigo-950 text-indigo-100 flex flex-col shrink-0 border-r border-indigo-900">
+        <aside className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-64 bg-indigo-950 text-indigo-100 flex-col shrink-0 border-r border-indigo-900 absolute md:relative z-20 h-full`}>
           {/* Header Sidebar */}
           <div className="p-4 border-b border-indigo-900/60 flex items-center gap-3">
             <button 
@@ -254,7 +277,10 @@ const ChatDivisi = () => {
               return (
                 <button
                   key={room.divisi_id}
-                  onClick={() => setActiveRoom(room)}
+                  onClick={() => {
+                    setActiveRoom(room);
+                    if (window.innerWidth < 768) setShowSidebar(false);
+                  }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
                     isActive 
                       ? 'bg-indigo-600 text-white shadow-md' 
@@ -282,16 +308,30 @@ const ChatDivisi = () => {
         </aside>
 
         {/* CHAT AREA */}
-        <section className="flex-1 flex flex-col bg-slate-50">
+        <section className="flex-1 flex flex-col bg-slate-50 relative">
+          {/* Overlay for mobile sidebar */}
+          {showSidebar && (
+            <div 
+              className="md:hidden absolute inset-0 bg-black/50 z-10" 
+              onClick={() => setShowSidebar(false)}
+            />
+          )}
+          
           {/* Header Room */}
           {activeRoom ? (
-            <div className="bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 shadow-sm z-10">
-              <div className="flex items-center gap-2">
-                <div className="bg-indigo-50 text-indigo-600 p-2 rounded-xl">
+            <div className="bg-white px-4 md:px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 shadow-sm z-0">
+              <div className="flex items-center gap-3">
+                <button 
+                  className="md:hidden p-2 -ml-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition"
+                  onClick={() => setShowSidebar(true)}
+                >
+                  <MessageSquare className="w-5 h-5" />
+                </button>
+                <div className="bg-indigo-50 text-indigo-600 p-2 rounded-xl hidden sm:block">
                   {getRoomIcon(activeRoom.nama_divisi)}
                 </div>
                 <div>
-                  <h2 className="font-bold text-slate-800 leading-tight text-base">
+                  <h2 className="font-bold text-slate-800 leading-tight text-sm md:text-base">
                     {activeRoom.nama_divisi}
                   </h2>
                   <p className="text-slate-400 text-[10px] font-semibold mt-0.5">
@@ -305,6 +345,16 @@ const ChatDivisi = () => {
                   </p>
                 </div>
               </div>
+              
+              {/* Tombol Ringkas AI */}
+              <button
+                onClick={handleAISummary}
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-bold shadow-md hover:shadow-lg transition cursor-pointer"
+              >
+                <span>✨</span> 
+                <span className="hidden sm:inline">Ringkas Chat (AI)</span>
+                <span className="sm:hidden">AI</span>
+              </button>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8">
@@ -399,9 +449,7 @@ const ChatDivisi = () => {
           )}
         </section>
 
-      </div>
-
-      {/* CREATE ROOM CHAT MODAL */}
+      </div>      {/* CREATE ROOM CHAT MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100">
@@ -432,34 +480,96 @@ const ChatDivisi = () => {
                   required
                   value={newRoomName}
                   onChange={(e) => setNewRoomName(e.target.value)}
-                  placeholder="Contoh: Vendor Catering atau Vendor Sound"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                  placeholder="Misal: Vendor - Dekorasi"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
                 />
-                <p className="text-[10px] text-amber-600 mt-2 font-medium">
-                  💡 Tips: Awali dengan kata "Vendor" (misal: Vendor Catering) agar otomatis dikategorikan sebagai room vendor yang privat untuk pengurus inti.
-                </p>
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button 
-                  type="button" 
+              <div className="flex gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
                   onClick={() => { setShowCreateModal(false); setNewRoomName(''); setCreateError(''); }}
-                  className="flex-1 border border-slate-200 text-slate-700 rounded-xl py-2.5 text-sm font-medium hover:bg-slate-50 transition cursor-pointer text-center"
+                  className="flex-1 px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
                 >
                   Batal
                 </button>
-                <button 
-                  type="submit" 
-                  disabled={createLoading || !newRoomName.trim()}
-                  className="flex-1 bg-indigo-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-indigo-700 flex items-center justify-center gap-2 disabled:opacity-70 transition cursor-pointer"
+                <button
+                  type="submit"
+                  disabled={createLoading}
+                  className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition disabled:opacity-50 flex justify-center cursor-pointer"
                 >
-                  {createLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buat Room'}
+                  {createLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Buat Saluran'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* AI SUMMARY MODAL */}
+      {showSummaryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50">
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                  ✨ Ringkasan AI
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Analisis pesan grup dengan Gemini AI</p>
+              </div>
+              <button 
+                onClick={() => setShowSummaryModal(false)} 
+                className="text-slate-400 hover:text-red-500 transition p-1 hover:bg-slate-200 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto bg-slate-50 flex-1">
+              {loadingSummary ? (
+                <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                  <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                  <p className="text-sm font-medium text-slate-600">Gemini AI sedang membaca pesan...</p>
+                </div>
+              ) : (
+                <div className="prose prose-sm prose-indigo max-w-none text-slate-700 whitespace-pre-wrap leading-relaxed">
+                  {aiSummary}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 bg-white flex flex-col gap-3">
+              <div className="flex gap-2">
+                <input 
+                  type="text"
+                  placeholder="Misal: Tolong ringkas pesan dari Ketua saja..."
+                  className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAISummary(customPrompt)}
+                  disabled={loadingSummary}
+                />
+                <button 
+                  onClick={() => handleAISummary(customPrompt)}
+                  disabled={loadingSummary || !customPrompt.trim()}
+                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100 disabled:opacity-50 transition cursor-pointer"
+                >
+                  Tanya AI
+                </button>
+              </div>
+              <div className="flex justify-end">
+                <button 
+                  onClick={() => setShowSummaryModal(false)}
+                  className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

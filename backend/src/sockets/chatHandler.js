@@ -95,9 +95,20 @@ const setupChatSocket = (io, socket) => {
 
       const room = `divisi-${divisi_id}`;
       
-      // Pastikan socket sudah join ke room ini secara internal dan punya data
-      if (!socket.rooms.has(room) || !socket.roomData?.[room]) {
-        console.warn(`[Chat] User ${user_id} mencoba mengirim pesan tanpa join room`);
+      // Re-verify from DB instead of relying on volatile socket state
+      const divisi = await prisma.divisi.findUnique({
+        where: { divisi_id },
+        include: { event: true }
+      });
+      if (!divisi) return;
+
+      const keanggotaan = await prisma.keanggotaanEvent.findFirst({
+        where: { user_id, event_id: divisi.event_id, status: 'AKTIF' },
+        include: { user: true }
+      });
+
+      if (!keanggotaan) {
+        console.warn(`[Chat] User ${user_id} mencoba mengirim pesan tetapi bukan anggota event aktif.`);
         return;
       }
 
@@ -115,7 +126,7 @@ const setupChatSocket = (io, socket) => {
         pesan_id: pesan.pesan_id,
         pengirim: {
           id: user_id,
-          nama: socket.roomData[room].nama_lengkap
+          nama: keanggotaan.user.nama_lengkap
         },
         isi_pesan: pesan.isi_pesan,
         dikirim_pada: pesan.dikirim_pada, // otomatis digenerate DB saat create

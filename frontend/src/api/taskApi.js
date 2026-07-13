@@ -6,8 +6,8 @@ export const taskApi = {
     apiClient.get(`/events/${eventId}/tasks`, { params }),
   createTask: (eventId, data) =>
     apiClient.post(`/events/${eventId}/tasks`, data),
-  getDashboard: (eventId) =>
-    apiClient.get(`/events/${eventId}/dashboard`),
+  getDashboard: (eventId, params = {}) =>
+    apiClient.get(`/events/${eventId}/dashboard`, { params }),
 
   // ── Individual task routes ───────────────────────────────────────────────
   getTaskDetail: (taskId) =>

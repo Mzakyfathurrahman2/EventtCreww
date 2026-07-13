@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { taskApi } from '../api/taskApi';
 import { eventApi } from '../api/eventApi';
+import { AuthContext } from '../context/AuthContext';
 import {
   Loader2, Plus, Search, Trash2, Pencil,
-  CheckCircle2, ChevronRight, Calendar, AlertCircle, ArrowLeft
+  CheckCircle2, ChevronRight, Calendar, AlertCircle, ArrowLeft, User
 } from 'lucide-react';
 
 // ── Badge Components ──────────────────────────────────────────────────────────
@@ -146,6 +147,7 @@ const TaskListPage = () => {
   const { id: eventId } = useParams();
   const navigate = useNavigate();
 
+  const { user } = useContext(AuthContext);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -153,6 +155,7 @@ const TaskListPage = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPrioritas, setFilterPrioritas] = useState('');
   const [filterDivisi, setFilterDivisi] = useState('');
+  const [tabAktif, setTabAktif] = useState('semua'); // 'semua' or 'saya'
 
   // Added states for dynamic data
   const [userRole, setUserRole] = useState('ANGGOTA');
@@ -192,9 +195,11 @@ const TaskListPage = () => {
     }
   };
 
-  const filteredTasks = tasks.filter(t =>
-    t.judul_tugas?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredTasks = tasks.filter(t => {
+    const matchSearch = t.judul_tugas?.toLowerCase().includes(search.toLowerCase());
+    const matchTab = tabAktif === 'saya' ? (t.assignee_id === user?.user_id) : true;
+    return matchSearch && matchTab;
+  });
 
   const hasFilters = filterStatus || filterPrioritas || filterDivisi;
 
@@ -223,6 +228,27 @@ const TaskListPage = () => {
             Buat Tugas
           </button>
         )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-slate-200">
+        <button
+          onClick={() => setTabAktif('semua')}
+          className={`pb-3 px-2 text-sm font-semibold transition-colors border-b-2 ${
+            tabAktif === 'semua' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Semua Tugas
+        </button>
+        <button
+          onClick={() => setTabAktif('saya')}
+          className={`pb-3 px-2 text-sm font-semibold transition-colors border-b-2 flex items-center gap-1.5 ${
+            tabAktif === 'saya' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <User className="w-4 h-4" />
+          Tugas Saya
+        </button>
       </div>
 
       {/* Filter Bar */}
@@ -308,6 +334,12 @@ const TaskListPage = () => {
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <StatusBadge status={task.status_tugas} />
                       <PrioritasBadge prioritas={task.prioritas} />
+                      {task.assignee_id === user?.user_id && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-indigo-100 text-indigo-700 border border-indigo-200">
+                          <User className="w-3 h-3 mr-1" />
+                          TUGAS ANDA
+                        </span>
+                      )}
                     </div>
                     {['KETUA', 'SEKRETARIS', 'BENDAHARA'].includes(userRole) && (
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

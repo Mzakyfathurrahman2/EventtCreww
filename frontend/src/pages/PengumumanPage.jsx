@@ -2,6 +2,22 @@ import React, { useState, useEffect } from 'react';
 import apiClient from '../api/authApi';
 import { useParams } from 'react-router-dom';
 import { Megaphone, Plus, Edit2, Trash2, X, Send, ArrowLeft, Calendar, MapPin } from 'lucide-react';
+import { io } from 'socket.io-client';
+
+const getSocketUrl = () => {
+  if (import.meta.env.VITE_SOCKET_URL) return import.meta.env.VITE_SOCKET_URL;
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace('/api', '');
+  
+  if (typeof window !== 'undefined' && window.location.hostname) {
+    const port = window.location.port;
+    if (port && (port === '5173' || port === '5174' || port === '3000')) {
+      return `${window.location.protocol}//${window.location.hostname}:3000`;
+    }
+    return window.location.origin;
+  }
+  return 'http://localhost:3000';
+};
+const SOCKET_URL = getSocketUrl();
 
 const PengumumanPage = () => {
   const { eventId } = useParams();
@@ -51,6 +67,24 @@ const PengumumanPage = () => {
   useEffect(() => {
     fetchInitData();
     fetchPengumuman();
+
+    const newSocket = io(SOCKET_URL, {
+      withCredentials: true,
+      auth: { token: localStorage.getItem('token') }
+    });
+
+    newSocket.on('new-pengumuman', (payload) => {
+      if (payload.event_id === eventId) {
+        setPengumumans(prev => {
+          if(prev.find(p => p.pengumuman_id === payload.data.pengumuman_id)) return prev;
+          return [payload.data, ...prev];
+        });
+      }
+    });
+
+    return () => {
+      newSocket.disconnect();
+    };
     // eslint-disable-next-line
   }, [eventId]);
 

@@ -309,10 +309,10 @@ const TaskDetailPage = () => {
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Back */}
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(`/events/${task.event_id}/tasks`)}
           className="flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 mb-6 transition"
         >
-          <ArrowLeft className="w-4 h-4" /> Kembali
+          <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar Tugas
         </button>
 
         {/* Task Header */}
